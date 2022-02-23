@@ -19,8 +19,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public constant FELONY_THRESHOLD = 150;
   uint256 public constant BSC_RELAYER_REWARD = 1e16;
   uint256 public constant DECREASE_RATE = 4;
-  uint256 public constant FINALITY_DISTANCE = 11;
-  uint256 public constant FINALITY_REWARD_RATIO = 20;
 
   // State of the contract
   address[] public validators;
@@ -28,6 +26,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public previousHeight;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
+
+  uint256 public constant FINALITY_DISTANCE = 11;
+  uint256 public constant FINALITY_REWARD_RATIO = 20;
   uint256 public finalityDistance;
   uint256 public finalityRewardRatio;
 
@@ -194,7 +195,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     uint256 index = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(_evidence.valAddr);
     require(index > 0, "validator not exist")
-    ( , , , , , , bytes memory BLSKey) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).currentValidatorSet(index - 1)
+    bytes memory BLSKey  // TODO
 
     bytes[7] memory input;
 
