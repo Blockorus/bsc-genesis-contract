@@ -1,12 +1,15 @@
 pragma solidity 0.6.4;
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
+import "./lib/BytesLib.sol";
+import "./lib/TypesToBytes.sol";
 import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IApplication.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/ISystemReward.sol";
 import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
@@ -25,6 +28,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
 
+  // BEP-126 Fast Finality
+  uint256 public constant FINALITY_DISTANCE = 11;
+  uint256 public constant FINALITY_SLASH_REWARD_RATIO = 20;
+
+  uint256 public finalityDistance;
+  uint256 public finalitySlashRewardRatio;
+
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
   event paramChange(string key, bytes value);
@@ -39,6 +49,17 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     bool exist;
   }
 
+  // Proof that a validator misbehaved in fast finality
+  struct FinalityEvidence {
+    uint256 numA;
+    bytes32 headerA;
+    bytes   sigA;
+    uint256 numB;
+    bytes32 headerB;
+    bytes   sigB;
+    address valAddr;
+  }
+
   modifier oncePerBlock() {
     require(block.number > previousHeight, "can not slash twice in one block");
     _;
@@ -46,15 +67,22 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   modifier onlyZeroGasPrice() {
-    
     require(tx.gasprice == 0 , "gasprice is not zero");
-    
     _;
   }
-  
+
+  modifier noReentrant() {
+    require(!locked, "no re-entrancy");
+    locked = true;
+    _;
+    locked = false;
+  }
+
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
+    finalityDistance = FINALITY_DISTANCE;
+    finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
     alreadyInit = true;
   }
 
@@ -158,6 +186,66 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  function handleFinalityReport(FinalityEvidence calldata _evidence) external onlyInit oncePerBlock noReentrant {
+    uint256 _numA = _evidence.numA;
+    uint256 _numB = _evidence.numB;
+
+    require(
+      _numA + finalityDistance >= _numB || _numB + finalityDistance >= _numA,
+      'too long distance between blocks'
+    );
+    require(
+      _numA <= block.number() &&
+      _numA + 256 >= block.number() &&
+      _numB <= block.number() &&
+      _numB + 256 >= block.number(),
+      'block number out of range'
+    );
+
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator), "not current validator");
+
+    uint256 index = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(_evidence.valAddr);
+    ( , , bytes memory voteAddress) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).validatorExtraSet(index - 1);
+
+    bytes memory bytesNumA;
+    bytes memory bytesNumB;
+    bytes memory bytesHeaderA;
+    bytes memory bytesHeaderB;
+    TypesToBytes.uintToBytes(32, _evidence.numA, bytesNumA);
+    TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);   
+    TypesToBytes.uintToBytes(32, _evidence.numB, bytesNumB);
+    TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB); 
+
+    bytes memory input = BytesLib.concat(bytesNumA, bytesHeaderA);
+    input = BytesLib.concat(input, _evidence.sigA);
+    input = BytesLib.concat(input, bytesNumB);
+    input = BytesLib.concat(input, bytesHeaderB);
+    input = BytesLib.concat(input, _evidence.sigB);
+    input = BytesLib.concat(input, voteAddress);
+
+    assembly {
+      let len := mload(input)
+      if iszero(call(not(0), 0x64, 0, input, len, _, 0x20)) {  // precompiled contract address 0x64
+        revert(0, 0)
+      }
+    }
+
+    bytes32 _headerA = blockhash(_numA);
+    bytes32 _headerB = blockhash(_numB);
+
+    if (_headerA != _evidence.headerA && _headerB != _evidence.headerB) {
+      revert(string(abi.encodePacked("invalid header")));
+    } else if (_headerA == _evidence.headerA && _headerB == _evidence.headerB) {
+      revert(string(abi.encodePacked("invalid evidence")));
+    } else {
+      uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
+      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+      IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
+      emit validatorSlashed(_evidence.valAddr);
+    }
+  }
+  
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
@@ -174,6 +262,16 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
+    } else if (Memory.compareStrings(key, "finalityDistance")) {
+      require(value.length == 32, "length of finalityDistance mismatch");
+      uint256 newFinalityDistance = BytesToTypes.bytesToUint256(32, value);
+      require(newFinalityDistance >= 1 && newFinalityDistance <= 21, "the finality distance out of range");
+      finalityDistance = newFinalityDistance;
+    } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
+      require(value.length == 32, "length of finalityRewardRatio mismatch");
+      uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newFinalityRewardRatio >= 10 && newFinalityRewardRatio < 100, "the finality reward ratio out of range");
+      finalityRewardRatio = newFinalityRewardRatio;
     } else {
       require(false, "unknown param");
     }
