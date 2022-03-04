@@ -1,4 +1,5 @@
 pragma solidity 0.6.4;
+pragma experimental ABIEncoderV2;
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
 import "./lib/Memory.sol";
@@ -382,14 +383,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function getMiningValidators() public view returns(address[] memory, bytes[] memory) {
+  function getMiningValidators() external view override returns(address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
     if (_numOfCabinets == 0 ){
       _numOfCabinets = INIT_NUM_OF_CABINETS;
     }
 
-    (address[] memory validators, byte[] memory voteAddrs) = getValidators();
+    (address[] memory validators, bytes[] memory voteAddrs) = getValidators();
     if (validators.length <= _numOfCabinets) {
       return (validators, voteAddrs);
     }
@@ -465,10 +466,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
-  function distributeFinalityReward(address[] valAddrs, uint256[] weights) external onlyCoinbase onlyInit {
+  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase onlyInit {
     uint256 totalValue;
     totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(this), totalValue);
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
 
     if (totalValue > 0) {
       uint256 value;
@@ -476,7 +477,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 index;
       uint256 totalWeight;
       for (uint256 i = 0; i < weights.length; i++) {
-        totalWeight += weights[i]
+        totalWeight += weights[i];
       }
       for (uint256 i = 0; i < valAddrs.length; i++) {
         value = (totalValue * weights[i]) / totalWeight;
@@ -535,13 +536,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return false;
     }
 
+    (address[] memory remainingValidators, ) =  getValidators();
     if (
       currentValidatorSet[index].consensusAddress == address(0)     // - 0. check if empty validator
       || (maxNumOfMaintaining == 0 || maintainSlashScale == 0)      // - 1. check if not start
       || numOfMaintaining >= maxNumOfMaintaining                    // - 2. check if reached upper limit
       || !isWorkingValidator(index)                                 // - 3. check if not working(not jailed and not maintaining)
       || validatorExtraSet[index].enterMaintenanceHeight > 0        // - 5. check if has Maintained
-      || getValidators().length <= 1                                // - 6. check num of remaining working validators
+      || remainingValidators.length <= 1                                // - 6. check num of remaining working validators
     ) {
       return false;
     }
@@ -733,7 +735,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function _felony(address validator, uint256 index) private returns (bool){
     uint256 income = currentValidatorSet[index].incoming;
     uint256 rest = currentValidatorSet.length - 1;
-    if (getValidators().length <= 1) {
+    (address[] memory remainingValidators, ) =  getValidators();
+    if (remainingValidators.length <= 1) {
       // will not remove the validator if it is the only one validator.
       currentValidatorSet[index].incoming = 0;
       return false;
@@ -813,7 +816,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function _exitMaintenance(address validator, uint index) private returns (bool isFelony){
-    uint256 workingValidatorCount = getValidators().length;
+    (address[] memory remainingValidators, ) =  getValidators();
+    uint256 workingValidatorCount = remainingValidators.length;
     if (workingValidatorCount > numOfCabinets) {
       workingValidatorCount = numOfCabinets;
     }
@@ -850,7 +854,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   //rlp encode & decode function
-  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal returns (IbcValidatorSetPackage memory, bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
@@ -879,8 +883,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (validatorSetPkg, success);
   }
 
-  function decodeValidator(RLPDecode.RLPItem memory itemValidator) internal pure returns(Validator memory, ValidatorExtra memory, bool) {
+  function decodeValidator(RLPDecode.RLPItem memory itemValidator) internal returns(Validator memory, ValidatorExtra memory, bool) {
     Validator memory validator;
+    ValidatorExtra memory validatorExtra;
     RLPDecode.Iterator memory iter = itemValidator.iterator();
     bool success = false;
     uint256 idx=0;
@@ -913,6 +918,5 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     return (validator, validatorExtra, success);
   }
-
     
 }

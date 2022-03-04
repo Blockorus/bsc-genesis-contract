@@ -1,4 +1,5 @@
 pragma solidity 0.6.4;
+pragma experimental ABIEncoderV2;
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
 import "./lib/BytesLib.sol";
@@ -34,6 +35,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   uint256 public finalityDistance;
   uint256 public finalitySlashRewardRatio;
+  bool private locked;
 
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
@@ -187,58 +189,65 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function handleFinalityReport(FinalityEvidence calldata _evidence) external onlyInit oncePerBlock noReentrant {
-    uint256 _numA = _evidence.numA;
-    uint256 _numB = _evidence.numB;
-
     require(
-      _numA + finalityDistance >= _numB || _numB + finalityDistance >= _numA,
+      _evidence.numA + finalityDistance >= _evidence.numB || _evidence.numB + finalityDistance >= _evidence.numA,
       'too long distance between blocks'
     );
     require(
-      _numA <= block.number() &&
-      _numA + 256 >= block.number() &&
-      _numB <= block.number() &&
-      _numB + 256 >= block.number(),
+      _evidence.numA <= block.number &&
+      _evidence.numA + 256 >= block.number &&
+      _evidence.numB <= block.number &&
+      _evidence.numB + 256 >= block.number,
       'block number out of range'
     );
 
-    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator), "not current validator");
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(_evidence.valAddr), "not current validator");
 
-    uint256 index = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(_evidence.valAddr);
-    ( , , bytes memory voteAddress) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).validatorExtraSet(index - 1);
+    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getMiningValidators();
 
-    bytes memory bytesNumA;
-    bytes memory bytesNumB;
-    bytes memory bytesHeaderA;
-    bytes memory bytesHeaderB;
-    TypesToBytes.uintToBytes(32, _evidence.numA, bytesNumA);
-    TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);   
-    TypesToBytes.uintToBytes(32, _evidence.numB, bytesNumB);
-    TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB); 
+    bytes memory voteAddress;
+    for (uint i = 0; i < vals.length; i++) {
+      if (vals[i] == _evidence.valAddr) {
+        voteAddress = voteAddrs[i];
+        break;
+      }
+    }
+    bytes memory input;
+    {
+      bytes memory bytesNumA;
+      bytes memory bytesNumB;
+      bytes memory bytesHeaderA;
+      bytes memory bytesHeaderB;
+      TypesToBytes.uintToBytes(32, _evidence.numA, bytesNumA);
+      TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);   
+      TypesToBytes.uintToBytes(32, _evidence.numB, bytesNumB);
+      TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB); 
 
-    bytes memory input = BytesLib.concat(bytesNumA, bytesHeaderA);
-    input = BytesLib.concat(input, _evidence.sigA);
-    input = BytesLib.concat(input, bytesNumB);
-    input = BytesLib.concat(input, bytesHeaderB);
-    input = BytesLib.concat(input, _evidence.sigB);
-    input = BytesLib.concat(input, voteAddress);
+      input = BytesLib.concat(bytesNumA, bytesHeaderA);
+      input = BytesLib.concat(input, _evidence.sigA);
+      input = BytesLib.concat(input, bytesNumB);
+      input = BytesLib.concat(input, bytesHeaderB);
+      input = BytesLib.concat(input, _evidence.sigB);
+      input = BytesLib.concat(input, voteAddress);
+    }
 
+    bytes memory output;
     assembly {
       let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, _, 0x20)) {  // precompiled contract address 0x64
+      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {  // precompiled contract address 0x64
         revert(0, 0)
       }
     }
 
-    bytes32 _headerA = blockhash(_numA);
-    bytes32 _headerB = blockhash(_numB);
+    bytes32 _headerA = blockhash(_evidence.numA);
+    bytes32 _headerB = blockhash(_evidence.numB);
 
     if (_headerA != _evidence.headerA && _headerB != _evidence.headerB) {
       revert(string(abi.encodePacked("invalid header")));
     } else if (_headerA == _evidence.headerA && _headerB == _evidence.headerB) {
       revert(string(abi.encodePacked("invalid evidence")));
     } else {
-      uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
+      uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
@@ -267,11 +276,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFinalityDistance = BytesToTypes.bytesToUint256(32, value);
       require(newFinalityDistance >= 1 && newFinalityDistance <= 21, "the finality distance out of range");
       finalityDistance = newFinalityDistance;
-    } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
-      require(value.length == 32, "length of finalityRewardRatio mismatch");
-      uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 10 && newFinalityRewardRatio < 100, "the finality reward ratio out of range");
-      finalityRewardRatio = newFinalityRewardRatio;
+    } else if (Memory.compareStrings(key, "finalitySlashRewardRatio")) {
+      require(value.length == 32, "length of finalitySlashRewardRatio mismatch");
+      uint256 newFinalitySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newFinalitySlashRewardRatio >= 10 && newFinalitySlashRewardRatio < 100, "the finality slash reward ratio out of range");
+      finalitySlashRewardRatio = newFinalitySlashRewardRatio;
     } else {
       require(false, "unknown param");
     }
