@@ -15,7 +15,7 @@ contract('SlashIndicator', (accounts) => {
 
     const accountOne = accounts[0];
 
-    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccounts = (await validatorInstance.getMiningValidators.call())['0'];
     let validatorAccount = validatorAccounts[0];
 
     for (let i =1; i<10; i++){
@@ -31,7 +31,7 @@ contract('SlashIndicator', (accounts) => {
     const validatorInstance = await BSCValidatorSet.deployed();
 
     const nonSystemAccount = accounts[1];
-    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccounts = (await validatorInstance.getMiningValidators.call())['0'];
     let validatorAccount = validatorAccounts[0];
     // first slash
     try{
@@ -49,7 +49,7 @@ contract('SlashIndicator: isOperator works', (accounts) => {
     const validatorInstance = await BSCValidatorSet.deployed();
 
     const accountOne = accounts[0];
-    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccounts = (await validatorInstance.getMiningValidators.call())['0'];
     let validatorAccount = validatorAccounts[0];
 
     // slash afterward
@@ -62,14 +62,13 @@ contract('SlashIndicator: isOperator works', (accounts) => {
   });
 });
 
-
 contract('SlashIndicator: catch emit event', (accounts) => {
   it('catch emit event', async () => {
       const slashInstance = await SlashIndicator.deployed();
       const validatorInstance = await BSCValidatorSet.deployed();
   
       const accountOne = accounts[0];
-      let validatorAccounts = await validatorInstance.getMiningValidators.call();
+      let validatorAccounts = (await validatorInstance.getMiningValidators.call())['0'];
       let validatorAccount = validatorAccounts[0];
       for (let i =1; i<50; i++){
         let tx = await slashInstance.slash(validatorAccount, { from: accountOne });
@@ -79,7 +78,6 @@ contract('SlashIndicator: catch emit event', (accounts) => {
       }
     });
 });
-
 
 contract('SlashIndicator', (accounts) => {
   it('trigger misdemeanor', async () => {
@@ -184,7 +182,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account3 is wrong");
-    let consensusAddress = await validatorSetInstance.getValidators.call();
+    let consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddress.length,2, "case1: length of validators should be 2");
     assert.equal(consensusAddress[0],secondValidator, "case1: index 0 of validators should be account2");
     assert.equal(consensusAddress[1],thirdValidator, "case1: index 1 of validators should be account3");
@@ -208,7 +206,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account3 is wrong");
-    consensusAddress = await validatorSetInstance.getValidators.call();
+    consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddress.length,2, "case2: length of validators should be 2");
     assert.equal(consensusAddress[0],validator, "case2: index 0 of validators should be account1");
     assert.equal(consensusAddress[1],thirdValidator, "case2: index 1 of validators should be account3");
@@ -232,7 +230,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account2 is wrong");
-    consensusAddress = await validatorSetInstance.getValidators.call();
+    consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddress.length,2, "case3: length of validators should be 2");
     assert.equal(consensusAddress[0],validator, "case3: index 0 of validators should be account1");
     assert.equal(consensusAddress[1],secondValidator, "case3: index 0 of validators should be account2");

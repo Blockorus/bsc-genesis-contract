@@ -25,13 +25,86 @@ const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
 ));
 
 contract('BSCValidatorSet', (accounts) => {
+  it('decode old version cross chain package', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidator = web3.eth.accounts.create();
+
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+    
+    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
+    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
+    assert.equal(updated, false, "updated shoudl be false");
+  });
+
+  it('decode new version cross chain package', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidator = web3.eth.accounts.create();
+    let voteAddrHex = '0x61626364';
+    let packageBytes = newValidatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address],
+      [web3.utils.hexToBytes(voteAddrHex)]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+    let voteAddr = (await validatorSetInstance.getValidators.call())['1'][0];
+
+    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
+    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
+    assert.equal(voteAddr, voteAddrHex);
+    assert.equal(updated, true, 'updated shoudl be true');
+  });
+
+  it('decode old version cross chain package again', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidator = web3.eth.accounts.create();
+
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+
+    truffleAssert.eventNotEmitted(tx, 'validatorSetUpdated');
+    if (consensusAddr  == newValidator.address) {
+      assert.fail('consensusAddr should not be new validator');
+    };
+    assert.equal(updated, true, 'updated shoudl be true');
+  });
+});
+
+contract('BSCValidatorSet', (accounts) => {
   it('query basic info', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
 
     let totalInComing = await validatorSetInstance.totalInComing.call();
     assert.equal(totalInComing,0, "totalInComing should be 0");
 
-    let consensusAddr = await validatorSetInstance.getValidators.call()[0];
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
     assert.equal(consensusAddr,accounts[9].address, "consensusAddr should be accounts[9]");
   });
 
@@ -208,7 +281,7 @@ contract('BSCValidatorSet', (accounts) => {
       let arr = arrs[j];
       let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
       await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
-      let consensusAddres = await validatorSetInstance.getValidators.call();
+      let consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
       assert.equal(consensusAddres.length, arr.length);
       for(let i =0;i<consensusAddres.length;i++){
         assert.equal(consensusAddres[i],arr[i], "consensusAddr not equal");
@@ -498,7 +571,7 @@ contract('BSCValidatorSet', (accounts) => {
         [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    let consensusAddres = await validatorSetInstance.getValidators.call();
+    let consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddres.length, 3);
     assert.equal(consensusAddres[0], newValidator1.address);
     assert.equal(consensusAddres[1], newValidator2.address);
@@ -515,7 +588,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator1.address], [newValidator1.address], [newValidator1.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = await validatorSetInstance.getValidators.call();
+    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddres.length, 2);
     assert.equal(consensusAddres[0], newValidator2.address);
     assert.equal(consensusAddres[1], newValidator3.address);
@@ -527,7 +600,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator2.address], [newValidator2.address], [newValidator2.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = await validatorSetInstance.getValidators.call();
+    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddres.length, 1);
     assert.equal(consensusAddres[0], newValidator3.address);
 
@@ -535,7 +608,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator3.address], [newValidator3.address], [newValidator3.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = await validatorSetInstance.getValidators.call();
+    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
     assert.equal(consensusAddres.length, 1);
     assert.equal(consensusAddres[0], newValidator3.address);
 
@@ -692,8 +765,8 @@ contract('BSCValidatorSet', (accounts) => {
     // without candidate validators
     let maxNumOfWorkingCandidates = 2;
     let numOfCabinets = 21;
-    let validators = await validatorSetInstance.getValidators.call();
-    let miningValidators = await validatorSetInstance.getMiningValidators.call();
+    let validators = (await validatorSetInstance.getValidators.call())['0'];
+    let [miningValidators, _] = await validatorSetInstance.getMiningValidators.call();
     assert.deepEqual(validators.slice(0,numOfCabinets), miningValidators, "wrong validators");
 
     // set maxNumOfCandidates to 20
@@ -718,7 +791,7 @@ contract('BSCValidatorSet', (accounts) => {
       maxNumOfWorkingCandidates = validators.length - numOfCabinets;
     } 
     
-    miningValidators = await validatorSetInstance.getMiningValidators.call();
+    [miningValidators, _] = await validatorSetInstance.getMiningValidators.call();
     let exceptValues = validators.slice(0,numOfCabinets);
     let outValidator = miningValidators.filter((addr)=>{
       return !exceptValues.includes(addr);
@@ -762,6 +835,24 @@ function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList)
   }
   pkg.push(vals);
   return RLP.encode(pkg)
+}
+
+function newValidatorUpdateRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrList, voteAddrList) {
+  let pkg = [];
+  pkg.push(0x00);
+  let n = consensusAddrList.length;
+  let vals = [];
+  for (let i = 0; i < n; i++) {
+    vals.push([
+      consensusAddrList[i].toString(),
+      feeAddrList[i].toString(),
+      bscFeeAddrList[i].toString(),
+      0x0000000000000064,
+      voteAddrList[i],
+    ]);
+  }
+  pkg.push(vals);
+  return RLP.encode(pkg);
 }
 
 function serializeGovPack(key,value, target,extra) {

@@ -72,7 +72,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(tx.gasprice == 0 , "gasprice is not zero");
     _;
   }
-
+  
   modifier noReentrant() {
     require(!locked, "no re-entrancy");
     locked = true;
@@ -254,7 +254,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       emit validatorSlashed(_evidence.valAddr);
     }
   }
-  
+
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
