@@ -104,8 +104,8 @@ contract('BSCValidatorSet', (accounts) => {
     let totalInComing = await validatorSetInstance.totalInComing.call();
     assert.equal(totalInComing,0, "totalInComing should be 0");
 
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-    assert.equal(consensusAddr,accounts[9].address, "consensusAddr should be accounts[9]");
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'];
+    assert.equal(consensusAddr,accounts[0], "consensusAddr should be accounts[0]");
   });
 
   it('deposit success and fail', async () => {

@@ -139,7 +139,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event validatorExitMaintenance(address indexed validator);
 
   /*********************** init **************************/
-  function init() external onlyNotInit{
+  function init() external onlyNotInit {
     (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
     for (uint i = 0;i<validatorSetPkg.validatorSet.length;i++) {
@@ -189,7 +189,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit {
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
@@ -455,10 +455,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
-  function distributeFinalityReward(address[] valAddrs, uint256[] weights) external onlyCoinbase onlyInit {
+  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase onlyInit {
     uint256 totalValue;
     totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(this), totalValue);
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
 
     if (totalValue > 0) {
       uint256 value;
@@ -466,7 +466,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 index;
       uint256 totalWeight;
       for (uint256 i = 0; i < weights.length; i++) {
-        totalWeight += weights[i]
+        totalWeight += weights[i];
       }
       for (uint256 i = 0; i < valAddrs.length; i++) {
         value = (totalValue * weights[i]) / totalWeight;
@@ -488,7 +488,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
   }
-  
+
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash override {
     uint256 validatorIndex = _misdemeanor(validator);
