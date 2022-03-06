@@ -1,101 +1,27 @@
-const BSCValidatorSet = artifacts.require("BSCValidatorSet");
-const SystemReward = artifacts.require("SystemReward");
-const LightClient = artifacts.require("MockLightClient");
-const RelayerIncentivize = artifacts.require("RelayerIncentivize");
-const TokenManager = artifacts.require("TokenManager");
+const BSCValidatorSet = artifacts.require('BSCValidatorSet');
+const SystemReward = artifacts.require('SystemReward');
+const LightClient = artifacts.require('MockLightClient');
+const RelayerIncentivize = artifacts.require('RelayerIncentivize');
+const TokenManager = artifacts.require('TokenManager');
 const crypto = require('crypto');
-const MockTokenHub = artifacts.require("mock/MockTokenHub");
+const MockTokenHub = artifacts.require('mock/MockTokenHub');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 const RLP = require('rlp');
 const truffleAssert = require('truffle-assertions');
-const CrossChain = artifacts.require("CrossChain");
-const GovHub = artifacts.require("GovHub");
-const RelayerHub = artifacts.require("RelayerHub");
+const CrossChain = artifacts.require('CrossChain');
+const GovHub = artifacts.require('GovHub');
+const RelayerHub = artifacts.require('RelayerHub');
 const STAKE_CHANNEL_ID = 0x08;
 const GOV_CHANNEL_ID = 0x09;
-const SlashIndicator = artifacts.require("SlashIndicator");
+const SlashIndicator = artifacts.require('SlashIndicator');
 
-const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+const proof = Buffer.from(web3.utils.hexToBytes('0x00'));
 const merkleHeight = 100;
 
-const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
-    "0x00" +
-    "000000000000000000000000000000000000000000000000002386F26FC10000"
-));
-
-contract('BSCValidatorSet', (accounts) => {
-  it('decode old version cross chain package', async () => {
-    const validatorSetInstance = await BSCValidatorSet.deployed();
-    let relayerAccount = accounts[8];
-
-    let newValidator = web3.eth.accounts.create();
-
-    let packageBytes = validatorUpdateRlpEncode(
-      [newValidator.address],
-      [newValidator.address],
-      [newValidator.address]
-    );
-    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
-      from: relayerAccount,
-    });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-    
-    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
-    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
-    assert.equal(updated, false, "updated shoudl be false");
-  });
-
-  it('decode new version cross chain package', async () => {
-    const validatorSetInstance = await BSCValidatorSet.deployed();
-    let relayerAccount = accounts[8];
-
-    let newValidator = web3.eth.accounts.create();
-    let voteAddrHex = '0x61626364';
-    let packageBytes = newValidatorUpdateRlpEncode(
-      [newValidator.address],
-      [newValidator.address],
-      [newValidator.address],
-      [web3.utils.hexToBytes(voteAddrHex)]
-    );
-    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
-      from: relayerAccount,
-    });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-    let voteAddr = (await validatorSetInstance.getValidators.call())['1'][0];
-
-    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
-    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
-    assert.equal(voteAddr, voteAddrHex);
-    assert.equal(updated, true, 'updated shoudl be true');
-  });
-
-  it('decode old version cross chain package again', async () => {
-    const validatorSetInstance = await BSCValidatorSet.deployed();
-    let relayerAccount = accounts[8];
-
-    let newValidator = web3.eth.accounts.create();
-
-    let packageBytes = validatorUpdateRlpEncode(
-      [newValidator.address],
-      [newValidator.address],
-      [newValidator.address]
-    );
-    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
-      from: relayerAccount,
-    });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-
-    truffleAssert.eventNotEmitted(tx, 'validatorSetUpdated');
-    if (consensusAddr  == newValidator.address) {
-      assert.fail('consensusAddr should not be new validator');
-    };
-    assert.equal(updated, true, 'updated shoudl be true');
-  });
-});
+const packageBytesPrefix = Buffer.from(
+  web3.utils.hexToBytes('0x00' + '000000000000000000000000000000000000000000000000002386F26FC10000')
+);
 
 contract('BSCValidatorSet', (accounts) => {
   it('query basic info', async () => {
@@ -104,7 +30,7 @@ contract('BSCValidatorSet', (accounts) => {
     let totalInComing = await validatorSetInstance.totalInComing.call();
     assert.equal(totalInComing,0, "totalInComing should be 0");
 
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'];
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
     assert.equal(consensusAddr,accounts[0], "consensusAddr should be accounts[0]");
   });
 
@@ -152,8 +78,136 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(balance_wei, 2e8, "balance not equal");
   });
 
+});
 
+contract('BSCValidatorSet', (accounts) => {
+  it('decode old version cross chain package', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
 
+    let newValidator = web3.eth.accounts.create();
+
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+
+    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
+    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
+    assert.equal(updated, false, 'updated shoudl be false');
+  });
+
+  it('decode new version cross chain package', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidator = web3.eth.accounts.create();
+    let voteAddrHex = '0x61626364';
+    let packageBytes = newValidatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address],
+      [web3.utils.hexToBytes(voteAddrHex)]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+    let voteAddr = (await validatorSetInstance.getValidators.call())['1'][0];
+
+    truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
+    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
+    assert.equal(voteAddr, voteAddrHex);
+    assert.equal(updated, true, 'updated shoudl be true');
+  });
+
+  it('decode old version cross chain package again', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidator = web3.eth.accounts.create();
+
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address]
+    );
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+    let updated = await validatorSetInstance.finalityUpdated();
+    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+
+    truffleAssert.eventNotEmitted(tx, 'validatorSetUpdated');
+    if (consensusAddr === newValidator.address) {
+      assert.fail('consensusAddr should not be new validator');
+    }
+    assert.equal(updated, true, 'updated shoudl be true');
+  });
+});
+
+contract('BSCValidatorSet', (accounts) => {
+  it('distribute finality reward success', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+
+    await systemRewardInstance.send(web3.utils.toBN(1e10), { from: accounts[1] });
+
+    let accountOne = accounts[0];
+    let relayerAccount = accounts[8];
+
+    let newValidators = [];
+    for (let i = 0; i < 10; i++) {
+      newValidators.push(web3.eth.accounts.create().address);
+    }
+    let packageBytes = validatorUpdateRlpEncode(newValidators, newValidators, newValidators);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
+
+    let valAddrs = (await validatorSetInstance.getValidators.call())['0'];
+    for (let i = 0; i < 10; i++) {
+      valAddrs.push(web3.eth.accounts.create().address);
+    }
+    let weights = new Array(valAddrs.length).fill(1);
+
+    await systemRewardInstance.addOperator(validatorSetInstance.address);
+    let tx = await validatorSetInstance.distributeFinalityReward(valAddrs, weights, {
+      from: accountOne,
+    });
+
+    for (let i = 0; i < 10; i++) {
+      truffleAssert.eventEmitted(tx, 'validatorDeposit', (ev) => {
+        return ev.validator === valAddrs[i] && ev.amount.toNumber() === 5e7;
+      });
+    }
+    for (let i = 0; i < 10; i++) {
+      truffleAssert.eventEmitted(tx, 'deprecatedDeposit', (ev) => {
+        return ev.validator === valAddrs[i+10] && ev.amount.toNumber() === 5e7;
+      });
+    }
+  });
+
+  it('distribute finality reward fail', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+
+    let valAddrs = (await validatorSetInstance.getValidators.call())['0'];
+    let weights = new Array(valAddrs.length).fill(1);
+
+    try {
+      await validatorSetInstance.distributeFinalityReward(valAddrs, weights, { from: accounts[2]});
+      assert.fail();
+    } catch (error) {
+      assert.ok(error.toString().includes('the message sender must be the block producer'));
+    }
+  });
 });
 
 contract('BSCValidatorSet', (accounts) => {
@@ -167,7 +221,6 @@ contract('BSCValidatorSet', (accounts) => {
 
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
-
 
     for(let i =0;i <5; i++){
       await validatorSetInstance.deposit(validator, {from: systemAccount, value: 1e8 });
@@ -297,7 +350,6 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
-
 contract('BSCValidatorSet', (accounts) => {
   it('failed to update', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
@@ -419,7 +471,6 @@ contract('BSCValidatorSet', (accounts) => {
     });
   });
 });
-
 
 contract('BSCValidatorSet', (accounts) => {
   it('complicate distribute when one validar fee addr is contract', async () => {
@@ -627,7 +678,7 @@ contract('BSCValidatorSet', (accounts) => {
     let packageBytes = validatorUpdateRlpEncode(newValidators,
         newValidators, newValidators);
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
-    
+
     truffleAssert.eventEmitted(tx, "failReasonWithStr", (ev) => {
       return ev.message === "the number of validators exceed the limit";
     });
@@ -640,7 +691,6 @@ contract('BSCValidatorSet', (accounts) => {
     let systemAccount = accounts[0];
     let validator =  accounts[0];
 
-    let relayerAccount = accounts[8];
     const crossChain = await CrossChain.deployed();
     const govHub = await GovHub.deployed();
     const relayer = accounts[2];
@@ -708,7 +758,7 @@ contract('BSCValidatorSet', (accounts) => {
     govValue = "0x0000000000000000000000000000000000000000000000000000000000000014";// 20;
     govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
     await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
- 
+
     except = await validatorSetInstance.maxNumOfCandidates.call();
     assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(20)), true, "wrong maxNumOfCandidates");
 
@@ -726,7 +776,7 @@ contract('BSCValidatorSet', (accounts) => {
     govValue = "0x0000000000000000000000000000000000000000000000000000000000000005";// 5;
     govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
     await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
- 
+
     except = await validatorSetInstance.maxNumOfCandidates.call();
     assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(5)), true, "wrong maxNumOfCandidates");
     except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
@@ -766,7 +816,7 @@ contract('BSCValidatorSet', (accounts) => {
     let maxNumOfWorkingCandidates = 2;
     let numOfCabinets = 21;
     let validators = (await validatorSetInstance.getValidators.call())['0'];
-    let [miningValidators, _] = await validatorSetInstance.getMiningValidators.call();
+    let miningValidators = (await validatorSetInstance.getMiningValidators.call())['0'];
     assert.deepEqual(validators.slice(0,numOfCabinets), miningValidators, "wrong validators");
 
     // set maxNumOfCandidates to 20
@@ -789,9 +839,9 @@ contract('BSCValidatorSet', (accounts) => {
 
     if ((validators.length - numOfCabinets) < maxNumOfWorkingCandidates){
       maxNumOfWorkingCandidates = validators.length - numOfCabinets;
-    } 
-    
-    [miningValidators, _] = await validatorSetInstance.getMiningValidators.call();
+    }
+
+    miningValidators = (await validatorSetInstance.getMiningValidators.call())['0'];
     let exceptValues = validators.slice(0,numOfCabinets);
     let outValidator = miningValidators.filter((addr)=>{
       return !exceptValues.includes(addr);
@@ -799,33 +849,16 @@ contract('BSCValidatorSet', (accounts) => {
     // TODO, this is not always true, but as the epoch number is fixed during UT, the result is fixed.
    assert(outValidator.length > 0, "no validator choose from candidates");
    assert(outValidator.length <= maxNumOfWorkingCandidates, "too many working candidates" )
-    
+
   });
 });
 
-function jailRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
+function jailRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrList) {
   let pkg = [];
   pkg.push(0x01);
   let n = consensusAddrList.length;
   let vals = [];
-  for(let i = 0;i<n;i++) {
-    vals.push([
-       consensusAddrList[i].toString(),
-       feeAddrList[i].toString(),
-       bscFeeAddrList[i].toString(),
-       0x0000000000000064,
-    ]);
-  }
-  pkg.push(vals);
-  return RLP.encode(pkg)
-}
-
-function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
-  let pkg = [];
-  pkg.push(0x00);
-  let n = consensusAddrList.length;
-  let vals = [];
-  for(let i = 0;i<n;i++) {
+  for (let i = 0; i < n; i++) {
     vals.push([
       consensusAddrList[i].toString(),
       feeAddrList[i].toString(),
@@ -834,7 +867,24 @@ function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList)
     ]);
   }
   pkg.push(vals);
-  return RLP.encode(pkg)
+  return RLP.encode(pkg);
+}
+
+function validatorUpdateRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrList) {
+  let pkg = [];
+  pkg.push(0x00);
+  let n = consensusAddrList.length;
+  let vals = [];
+  for (let i = 0; i < n; i++) {
+    vals.push([
+      consensusAddrList[i].toString(),
+      feeAddrList[i].toString(),
+      bscFeeAddrList[i].toString(),
+      0x0000000000000064,
+    ]);
+  }
+  pkg.push(vals);
+  return RLP.encode(pkg);
 }
 
 function newValidatorUpdateRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrList, voteAddrList) {
@@ -855,21 +905,19 @@ function newValidatorUpdateRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrL
   return RLP.encode(pkg);
 }
 
-function serializeGovPack(key,value, target,extra) {
+function serializeGovPack(key, value, target, extra) {
   let pkg = [];
   pkg.push(key);
   pkg.push(value);
   pkg.push(target);
-  if(extra != null){
+  if (extra != null) {
     pkg.push(extra);
   }
   return RLP.encode(pkg);
 }
 
 function buildSyncPackagePrefix(syncRelayFee) {
-  return Buffer.from(web3.utils.hexToBytes(
-      "0x00" + toBytes32String(syncRelayFee)
-  ));
+  return Buffer.from(web3.utils.hexToBytes('0x00' + toBytes32String(syncRelayFee)));
 }
 
 function toBytes32String(input) {

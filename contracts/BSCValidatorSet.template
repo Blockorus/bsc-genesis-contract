@@ -152,6 +152,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     alreadyInit = true;
   }
 
+  receive() external payable {
+    require(msg.sender == SYSTEM_REWARD_ADDR);
+  }
+
   /*********************** Cross Chain App Implement **************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
@@ -497,7 +501,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function felony(address validator)external onlySlash override{
+  function felony(address validator) external onlySlash override{
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
       return;
@@ -520,7 +524,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return index - 1;
   }
 
-  function canEnterMaintenance(uint256 index) public returns (bool) {
+  function canEnterMaintenance(uint256 index) public view returns (bool) {
     if (index >= currentValidatorSet.length) {
       return false;
     }
@@ -668,7 +672,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
     if (m>n) {
-      ValidatorExtra memory validatorExtra;
       for (uint i = n;i<m;i++) {
         currentValidatorSet.push(validatorSet[i]);
         validatorExtraSet.push(_validatorExtraSet[i]);
