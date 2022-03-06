@@ -455,6 +455,40 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
+  function distributeFinalityReward(address[] valAddrs, uint256[] weights) external onlyCoinbase onlyInit {
+    uint256 totalValue;
+    totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(this), totalValue);
+
+    if (totalValue > 0) {
+      uint256 value;
+      address valAddr;
+      uint256 index;
+      uint256 totalWeight;
+      for (uint256 i = 0; i < weights.length; i++) {
+        totalWeight += weights[i]
+      }
+      for (uint256 i = 0; i < valAddrs.length; i++) {
+        value = (totalValue * weights[i]) / totalWeight;
+        valAddr = valAddrs[i];
+        index = currentValidatorSetMap[valAddr];
+        if (index > 0) {
+          Validator storage validator = currentValidatorSet[index - 1];
+          if (validator.jailed) {
+            emit deprecatedDeposit(valAddr, value);
+          } else {
+            totalInComing = totalInComing.add(value);
+            validator.incoming = validator.incoming.add(value);
+            emit validatorDeposit(valAddr, value);
+          }
+        } else {
+          // get incoming from deprecated validator;
+          emit deprecatedDeposit(valAddr, value);
+        }
+      }
+    }
+  }
+  
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash override {
     uint256 validatorIndex = _misdemeanor(validator);
