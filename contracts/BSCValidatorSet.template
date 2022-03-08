@@ -79,6 +79,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public FINALITY_REWARD_RATIO = 10;
 
   uint256 public finalityRewardRatio;
+  uint256 public previousHeight;
 
   struct Validator{
     address consensusAddress;
@@ -263,11 +264,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function updateValidatorSet(Validator[] memory validatorSet, ValidatorExtra[] memory _validatorExtraSet) internal returns (uint32) {
     {
       // do verify.
-      (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
-      if (!valid) {
-        emit failReasonWithStr(errMsg);
+      if (validatorSet.length > MAX_NUM_OF_VALIDATORS){
+        emit failReasonWithStr("the number of validators exceed the limit");
         return ERROR_FAIL_CHECK_VALIDATORS;
       }
+      for (uint i = 0;i<validatorSet.length;i++) {
+        for (uint j = 0;j<i;j++) {
+          if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
+            emit failReasonWithStr("duplicate consensus address of validatorSet");
+            return ERROR_FAIL_CHECK_VALIDATORS;
+          }
+        }
+      }
+      
     }
 
     // step 0: force all maintaining validators to exit `Temporary Maintenance`
@@ -652,20 +661,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** Internal Functions **************************/
-  function checkValidatorSet(Validator[] memory validatorSet) private pure returns(bool, string memory) {
-    if (validatorSet.length > MAX_NUM_OF_VALIDATORS){
-      return (false, "the number of validators exceed the limit");
-    }
-    for (uint i = 0;i<validatorSet.length;i++) {
-      for (uint j = 0;j<i;j++) {
-        if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
-          return (false, "duplicate consensus address of validatorSet");
-        }
-      }
-    }
-    return (true,"");
-  }
-
   function doUpdateState(Validator[] memory validatorSet, ValidatorExtra[] memory _validatorExtraSet) private{
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;

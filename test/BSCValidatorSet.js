@@ -65,14 +65,8 @@ contract('BSCValidatorSet', (accounts) => {
       assert.ok(error.toString().includes("deposit value is zero"));
     }
 
-    try{
-      await validatorSetInstance.send(1e8, {from: systemAccount});
-      assert.fail();
-    }catch (error) {
-    }
-
     let totalInComing = await validatorSetInstance.totalInComing.call();
-    assert.equal(totalInComing.toNumber(),1e8, "totalInComing should be 1e8");
+    assert.equal(totalInComing.toNumber(), 1e8, "totalInComing should be 1e8");
 
     let balance_wei = await web3.eth.getBalance(validatorSetInstance.address);
     assert.equal(balance_wei, 2e8, "balance not equal");
