@@ -268,8 +268,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("the number of validators exceed the limit");
         return ERROR_FAIL_CHECK_VALIDATORS;
       }
-      for (uint i = 0;i<validatorSet.length;i++) {
-        for (uint j = 0;j<i;j++) {
+      for (uint i = 0;i < validatorSet.length; i++) {
+        for (uint j = 0; j < i; j++) {
           if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
             emit failReasonWithStr("duplicate consensus address of validatorSet");
             return ERROR_FAIL_CHECK_VALIDATORS;
@@ -404,6 +404,36 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
+  function getLivingValidators() external view override returns(address[] memory, bytes[] memory) {
+    uint n = currentValidatorSet.length;
+    uint living = 0;
+    for (uint i = 0;i<n;i++) {
+      if (!currentValidatorSet[i].jailed) {
+        living ++;
+      }
+    }
+    address[] memory consensusAddrs = new address[](living);
+    bytes[] memory voteAddrs = new bytes[](living);
+    living = 0;
+    if (validatorExtraSet.length > 0) {
+      for (uint i = 0; i < n; i++) {
+        if (!currentValidatorSet[i].jailed) {
+          consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
+          voteAddrs[living] = validatorExtraSet[i].voteAddress;
+          living ++;
+        }
+      }
+    } else {
+      for (uint i = 0; i < n; i++) {
+        if (!currentValidatorSet[i].jailed) {
+          consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
+          living ++;
+        }
+      }
+    }
+    return (consensusAddrs, voteAddrs);
+  }
+
   function getMiningValidators() external view override returns(address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
@@ -446,14 +476,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
-    for (uint i = 0;i<n;i++) {
+    for (uint i = 0; i < n; i++) {
       if (isWorkingValidator(i)) {
         valid ++;
       }
     }
     address[] memory consensusAddrs = new address[](valid);
     valid = 0;
-    for (uint i = 0;i<n;i++) {
+    for (uint i = 0; i < n; i++) {
       if (isWorkingValidator(i)) {
         consensusAddrs[valid] = currentValidatorSet[i].consensusAddress;
         valid ++;
@@ -715,15 +745,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function isSameValidator(Validator memory v1, ValidatorExtra memory v1Extra, uint256 index) private view returns(bool) {
     Validator memory v2 = currentValidatorSet[index];
     ValidatorExtra memory v2Extra = validatorExtraSet[index];
-    if (v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && 
-        v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower) {
-          for (uint i = 0;i < 48; i++) {
-            if (v1Extra.voteAddress[i] != v2Extra.voteAddress[i]) {
-              return false;
-            }
-          }
-          return true;
+    if (v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress &&
+      v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower &&
+      v1Extra.voteAddress.length == v2Extra.voteAddress.length) {
+      for (uint i = 0;i < v1Extra.voteAddress.length; i++) {
+        if (v1Extra.voteAddress[i] != v2Extra.voteAddress[i]) {
+          return false;
         }
+      }
+      return true;
+    }
     return false;
   }
 
