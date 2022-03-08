@@ -80,12 +80,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function getSlashValidators() external view returns (address[] memory) {
     return validators;
   }{% endif %}
-  modifier noReentrant() {
-    require(!locked, "no re-entrancy");
-    locked = true;
-    _;
-    locked = false;
-  }
 
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
@@ -139,7 +133,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     indicators[validator] = indicator;
     emit validatorSlashed(validator);
   }
-
 
   // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
   // Clean is an effective implement to reorganize "validators" and "indicators".
@@ -195,31 +188,40 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
-  function handleFinalityReport(FinalityEvidence calldata _evidence) external onlyInit oncePerBlock noReentrant {
+  function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
+    if (finalityDistance == 0 || finalitySlashRewardRatio == 0) {
+      finalityDistance = FINALITY_DISTANCE;
+      finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
+    }
+
     require(
-      _evidence.numA + finalityDistance >= _evidence.numB || _evidence.numB + finalityDistance >= _evidence.numA,
+      (_evidence.numA < _evidence.numB && _evidence.numA + finalityDistance > _evidence.numB) ||
+      (_evidence.numB < _evidence.numA && _evidence.numB + finalityDistance > _evidence.numA),
       'too long distance between blocks'
     );
     require(
-      _evidence.numA <= block.number &&
+      _evidence.numA < block.number &&
       _evidence.numA + 256 >= block.number &&
-      _evidence.numB <= block.number &&
+      _evidence.numB < block.number &&
       _evidence.numB + 256 >= block.number,
       'block number out of range'
     );
 
     require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(_evidence.valAddr), "not current validator");
-
-    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getMiningValidators();
-
+    {% if mock %}{% else %}
+    // BLS verification
     bytes memory voteAddress;
+    bytes memory input;
+    bytes memory output;
+
+    address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getMiningValidators();
     for (uint i = 0; i < vals.length; i++) {
       if (vals[i] == _evidence.valAddr) {
         voteAddress = voteAddrs[i];
         break;
       }
     }
-    bytes memory input;
+
     {
       bytes memory bytesNumA;
       bytes memory bytesNumB;
@@ -238,21 +240,20 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       input = BytesLib.concat(input, voteAddress);
     }
 
-    bytes memory output;
     assembly {
       let len := mload(input)
       if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {  // precompiled contract address 0x64
         revert(0, 0)
       }
     }
-
+    {% endif %}
     bytes32 _headerA = blockhash(_evidence.numA);
     bytes32 _headerB = blockhash(_evidence.numB);
 
     if (_headerA != _evidence.headerA && _headerB != _evidence.headerB) {
-      revert(string(abi.encodePacked("invalid header")));
+      revert(string(abi.encodePacked("neither header is in local fork")));
     } else if (_headerA == _evidence.headerA && _headerB == _evidence.headerB) {
-      revert(string(abi.encodePacked("invalid evidence")));
+      revert(string(abi.encodePacked("both headers are in local fork")));
     } else {
       uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);

@@ -19,15 +19,11 @@ contract SystemReward is System, ISystemReward{
     _;
   }
 
-
-  modifier onlyOperator() {
-    require(operators[msg.sender],"only operator is allowed to call the method");
-    _;
-  }
   
   event rewardTo(address indexed to, uint256 amount);
   event rewardEmpty();
   event receiveDeposit(address indexed from, uint256 amount);
+  event addOperator(address indexed operator);
 
 
   receive() external payable{
@@ -37,7 +33,11 @@ contract SystemReward is System, ISystemReward{
   }
 
   
-  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns(uint256) {
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit returns(uint256) {
+    if (!operators[msg.sender]) {
+      return -1;
+    }
+
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
@@ -54,4 +54,20 @@ contract SystemReward is System, ISystemReward{
   function isOperator(address addr) external view returns (bool) {
     return operators[addr];
   }
+
+  function updateParam(string calldata key, bytes calldata value) onlyGov external override {
+    if (Memory.compareStrings(key, "addOperator")) {
+      bytes memory valueLocal = value;
+      require(valueLocal.length == 32, "length of value for addOperator should be 32");
+      address operatorAddr;
+      assembly {
+        handlerContract := mload(add(valueLocal, 32))
+      }
+      operators[operatorAddr] = true;
+      emit addOperator(operatorAddr);
+    } else {
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
+  }  
 }

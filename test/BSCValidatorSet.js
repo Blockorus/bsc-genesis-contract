@@ -30,8 +30,8 @@ contract('BSCValidatorSet', (accounts) => {
     let totalInComing = await validatorSetInstance.totalInComing.call();
     assert.equal(totalInComing,0, "totalInComing should be 0");
 
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-    assert.equal(consensusAddr,accounts[0], "consensusAddr should be accounts[0]");
+    let consensusAddr = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddr[0],accounts[0], "consensusAddr should be accounts[0]");
   });
 
   it('deposit success and fail', async () => {
@@ -95,12 +95,10 @@ contract('BSCValidatorSet', (accounts) => {
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
       from: relayerAccount,
     });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
+    let consensusAddr = await validatorSetInstance.getValidators.call();
 
     truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
-    assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
-    assert.equal(updated, false, 'updated shoudl be false');
+    assert.equal(consensusAddr[0], newValidator.address, 'consensusAddr should be new validator');
   });
 
   it('decode new version cross chain package', async () => {
@@ -118,38 +116,12 @@ contract('BSCValidatorSet', (accounts) => {
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
       from: relayerAccount,
     });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-    let voteAddr = (await validatorSetInstance.getValidators.call())['1'][0];
+    let consensusAddr = (await validatorSetInstance.getMiningValidators.call())['0'][0];
+    let voteAddr = (await validatorSetInstance.getMiningValidators.call())['1'][0];
 
     truffleAssert.eventEmitted(tx, 'validatorSetUpdated');
     assert.equal(consensusAddr, newValidator.address, 'consensusAddr should be new validator');
     assert.equal(voteAddr, voteAddrHex);
-    assert.equal(updated, true, 'updated shoudl be true');
-  });
-
-  it('decode old version cross chain package again', async () => {
-    const validatorSetInstance = await BSCValidatorSet.deployed();
-    let relayerAccount = accounts[8];
-
-    let newValidator = web3.eth.accounts.create();
-
-    let packageBytes = validatorUpdateRlpEncode(
-      [newValidator.address],
-      [newValidator.address],
-      [newValidator.address]
-    );
-    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
-      from: relayerAccount,
-    });
-    let updated = await validatorSetInstance.finalityUpdated();
-    let consensusAddr = (await validatorSetInstance.getValidators.call())['0'][0];
-
-    truffleAssert.eventNotEmitted(tx, 'validatorSetUpdated');
-    if (consensusAddr === newValidator.address) {
-      assert.fail('consensusAddr should not be new validator');
-    }
-    assert.equal(updated, true, 'updated shoudl be true');
   });
 });
 
@@ -172,7 +144,7 @@ contract('BSCValidatorSet', (accounts) => {
       from: relayerAccount,
     });
 
-    let valAddrs = (await validatorSetInstance.getValidators.call())['0'];
+    let valAddrs = await validatorSetInstance.getValidators.call();
     for (let i = 0; i < 10; i++) {
       valAddrs.push(web3.eth.accounts.create().address);
     }
@@ -198,7 +170,7 @@ contract('BSCValidatorSet', (accounts) => {
   it('distribute finality reward fail', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
 
-    let valAddrs = (await validatorSetInstance.getValidators.call())['0'];
+    let valAddrs = await validatorSetInstance.getValidators.call();
     let weights = new Array(valAddrs.length).fill(1);
 
     try {
@@ -283,7 +255,7 @@ contract('BSCValidatorSet', (accounts) => {
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
     let newValidators = [];
-    for(let i =0;i <41; i++) {
+    for(let i = 0; i < 41; i++) {
       newValidators.push(web3.eth.accounts.create().address)
     }
     let packageBytes = validatorUpdateRlpEncode(newValidators,
@@ -291,19 +263,19 @@ contract('BSCValidatorSet', (accounts) => {
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     // do deposit
-    for(let i =0;i <41; i++){
+    for(let i = 0; i < 41; i++){
       await validatorSetInstance.deposit(newValidators[i], {from: systemAccount, value: 1e18 });
     }
 
     // do update
     let updateValidators = [];
-    for(let i =0;i <41; i++) {
+    for(let i = 0; i < 41; i++) {
       updateValidators.push(web3.eth.accounts.create().address)
     }
     packageBytes = validatorUpdateRlpEncode(updateValidators,
         updateValidators,updateValidators);
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
-    console.log("The total gasUsd is", tx.receipt.gasUsed)
+    console.log("The total gasUsed is", tx.receipt.gasUsed)
   });
 
 });
@@ -332,11 +304,11 @@ contract('BSCValidatorSet', (accounts) => {
                 [validatorE,validatorC,validatorB,validatorA]];
     for(let j=0;j<arrs.length;j++){
       let arr = arrs[j];
-      let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-      await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
-      let consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
+      let packageBytes = validatorUpdateRlpEncode(arr, arr, arr);
+      await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
+      let consensusAddres = await validatorSetInstance.getValidators.call();
       assert.equal(consensusAddres.length, arr.length);
-      for(let i =0;i<consensusAddres.length;i++){
+      for(let i=0;i<consensusAddres.length;i++){
         assert.equal(consensusAddres[i],arr[i], "consensusAddr not equal");
       }
       for(let k=0;k<arr.length;k++){
@@ -622,7 +594,7 @@ contract('BSCValidatorSet', (accounts) => {
         [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    let consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
+    let consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 3);
     assert.equal(consensusAddres[0], newValidator1.address);
     assert.equal(consensusAddres[1], newValidator2.address);
@@ -639,7 +611,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator1.address], [newValidator1.address], [newValidator1.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
+    consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 2);
     assert.equal(consensusAddres[0], newValidator2.address);
     assert.equal(consensusAddres[1], newValidator3.address);
@@ -651,7 +623,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator2.address], [newValidator2.address], [newValidator2.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
+    consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);
     assert.equal(consensusAddres[0], newValidator3.address);
 
@@ -659,7 +631,7 @@ contract('BSCValidatorSet', (accounts) => {
     packageBytes = jailRlpEncode([newValidator3.address], [newValidator3.address], [newValidator3.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
-    consensusAddres = (await validatorSetInstance.getValidators.call())['0'];
+    consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);
     assert.equal(consensusAddres[0], newValidator3.address);
 
@@ -815,7 +787,7 @@ contract('BSCValidatorSet', (accounts) => {
     // without candidate validators
     let maxNumOfWorkingCandidates = 2;
     let numOfCabinets = 21;
-    let validators = (await validatorSetInstance.getValidators.call())['0'];
+    let validators = await validatorSetInstance.getValidators.call();
     let miningValidators = (await validatorSetInstance.getMiningValidators.call())['0'];
     assert.deepEqual(validators.slice(0,numOfCabinets), miningValidators, "wrong validators");
 

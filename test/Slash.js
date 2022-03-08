@@ -182,7 +182,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account3 is wrong");
-    let consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
+    let consensusAddress = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddress.length,2, "case1: length of validators should be 2");
     assert.equal(consensusAddress[0],secondValidator, "case1: index 0 of validators should be account2");
     assert.equal(consensusAddress[1],thirdValidator, "case1: index 1 of validators should be account3");
@@ -206,7 +206,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account3 is wrong");
-    consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
+    consensusAddress = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddress.length,2, "case2: length of validators should be 2");
     assert.equal(consensusAddress[0],validator, "case2: index 0 of validators should be account1");
     assert.equal(consensusAddress[1],thirdValidator, "case2: index 1 of validators should be account3");
@@ -230,7 +230,7 @@ contract('felony SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account2 is wrong");
-    consensusAddress = (await validatorSetInstance.getValidators.call())['0'];
+    consensusAddress = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddress.length,2, "case3: length of validators should be 2");
     assert.equal(consensusAddress[0],validator, "case3: index 0 of validators should be account1");
     assert.equal(consensusAddress[1],secondValidator, "case3: index 0 of validators should be account2");
@@ -282,7 +282,7 @@ contract('Clean SlashIndicator', (accounts) => {
     }
     // doclean
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
-    res= (await slashInstance.getSlashValidators.call());
+    res = (await slashInstance.getSlashValidators.call());
     assert.equal(res.length, 20);
     for(let i =0;i <20;i++){
       let res = await slashInstance.getSlashIndicator.call(validators[i]);
@@ -335,6 +335,123 @@ contract('Clean SlashIndicator', (accounts) => {
   });
 });
 
+contract('finality slash SlashIndicator', (accounts) => {
+  it('valid finality evidence', async () => {
+    const slashInstance = await SlashIndicator.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+    let relayerAccount = accounts[8];
+
+    await systemRewardInstance.send(web3.utils.toBN(1e18), { from: accounts[1] });
+    await systemRewardInstance.addOperator(slashInstance.address);
+
+    let currentNumber = await web3.eth.getBlockNumber();
+    let blockNumberA = currentNumber - 5;
+    let blockHashA = await web3.eth.getBlock(blockNumberA).then( (x) => { return x.hash });
+    
+    let evidence = {
+      numA: blockNumberA,
+      headerA: blockHashA,
+      sigA: Buffer.from('sigA'),
+      numB: currentNumber-10,
+      headerB: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigB: Buffer.from('sigB'),
+      valAddr: accounts[0],
+    };
+
+    let tx = await slashInstance.submitFinalityViolationEvidence(evidence, {
+      from: relayerAccount,
+    });
+    truffleAssert.eventEmitted(tx, 'validatorSlashed', (ev) => {
+      return ev.validator === accounts[0];
+    });
+  });
+
+  it('invalid finality evidence', async () => {
+    const slashInstance = await SlashIndicator.deployed();
+    let relayerAccount = accounts[8];
+
+    let currentNumber = await web3.eth.getBlockNumber();
+    let blockNumberA = currentNumber - 5;
+    let blockHashA = await web3.eth.getBlock(blockNumberA).then((x) => {
+      return x.hash;
+    });
+    let evidence1 = {
+      numA: blockNumberA,
+      headerA: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigA: Buffer.from('sigA'),
+      numB: currentNumber - 10,
+      headerB: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigB: Buffer.from('sigB'),
+      valAddr: accounts[0],
+    };
+    let evidence2 = {
+      numA: blockNumberA,
+      headerA: blockHashA,
+      sigA: Buffer.from('sigA'),
+      numB: blockNumberA - 15,
+      headerB: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigB: Buffer.from('sigB'),
+      valAddr: accounts[0],
+    };
+    let evidence3 = {
+      numA: blockNumberA,
+      headerA: blockHashA,
+      sigA: Buffer.from('sigA'),
+      numB: currentNumber - 10,
+      headerB: await web3.eth.getBlock(currentNumber - 10).then((x) => {
+        return x.hash;
+      }),
+      sigB: Buffer.from('sigB'),
+      valAddr: accounts[0],
+    };
+    let evidence4 = {
+      numA: currentNumber - 257,
+      headerA: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigA: Buffer.from('sigA'),
+      numB: currentNumber - 258,
+      headerB: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      sigB: Buffer.from('sigB'),
+      valAddr: accounts[0],
+    };
+
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence1, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes('neither header is in local fork'),
+        'two headers from other fork should not be ok'
+      );
+    };
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence2, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes('too long distance between blocks'),
+        'two blocks\' number larger than 11 should not be ok'
+      );
+    };
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence3, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes('both headers are in local fork'),
+        'two headers from one fork should not be ok'
+      );
+    };
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence4, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes('block number out of range'),
+        '256 block before current height should not be ok'
+      );
+    };
+  });
+});
 
 function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let pkg = [];
