@@ -696,17 +696,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint m = validatorSet.length;
 
     for (uint i = 0; i < n; i++) {
-      bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
-      for (uint j = 0; j < m; j++) {
-        if (oldValidator.consensusAddress == validatorSet[j].consensusAddress) {
-          stale = false;
-          break;
-        }
-      }
-      if (stale) {
-        delete currentValidatorSetMap[oldValidator.consensusAddress];
-      }
+      delete currentValidatorSetMap[oldValidator.consensusAddress];
     }
 
     if (n > m) {
@@ -717,29 +708,25 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     uint k = n < m ? n : m;
     for (uint i = 0; i < k; i++) {
-      if (!isSameValidator(validatorSet[i], _validatorExtraSet[i], i)) {
-        currentValidatorSetMap[validatorSet[i].consensusAddress] = i + 1;
-        currentValidatorSet[i] = validatorSet[i];
-        validatorExtraSet[i] = _validatorExtraSet[i];
-      } else {
-        currentValidatorSet[i].incoming = 0;
-      }
+      currentValidatorSetMap[validatorSet[i].consensusAddress] = i + 1;
+      currentValidatorSet[i] = validatorSet[i];
+      validatorExtraSet[i] = _validatorExtraSet[i];
+      validatorExtraSet[i].isMaintaining = false;
+      validatorExtraSet[i].enterMaintenanceHeight = 0;
     }
     if (m > n) {
       for (uint i = n; i < m; i++) {
         currentValidatorSet.push(validatorSet[i]);
         validatorExtraSet.push(_validatorExtraSet[i]);
         currentValidatorSetMap[validatorSet[i].consensusAddress] = i + 1;
+        validatorExtraSet[i].isMaintaining = false;
+        validatorExtraSet[i].enterMaintenanceHeight = 0;
       }
     }
 
     // make sure all new validators are cleared maintainInfo
     // should not happen, still protect
     numOfMaintaining = 0;
-    for (uint i = 0; i < currentValidatorSet.length; i++) {
-      validatorExtraSet[i].isMaintaining = false;
-      validatorExtraSet[i].enterMaintenanceHeight = 0;
-    }
   }
 
   function isSameValidator(Validator memory v1, ValidatorExtra memory v1Extra, uint256 index) private view returns (bool) {
