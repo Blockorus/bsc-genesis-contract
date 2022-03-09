@@ -49,12 +49,8 @@ contract('SystemReward', (accounts) => {
     let newAccount = web3.eth.accounts.create();
 
     await systemRewardInstance.send(1e8, {from: accounts[3]});
-    try{
-      await systemRewardInstance.claimRewards(newAccount.address, 1e7, {from: accounts[3]})
-      assert.fail();
-    }catch (error) {
-      assert.ok(error.toString().includes("only operator is allowed to call the method"));
-    }
+    let amount = await systemRewardInstance.claimRewards.call(newAccount.address, 1e7, {from: accounts[3]})
+    assert.equal(amount, 0, "the claim amount should be zero")
   });
 });
 

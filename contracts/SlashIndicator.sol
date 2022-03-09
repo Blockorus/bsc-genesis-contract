@@ -1,5 +1,6 @@
 pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
+
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
 import "./lib/BytesLib.sol";
@@ -14,7 +15,7 @@ import "./interface/ISystemReward.sol";
 import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
-contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
+contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplication {
   using RLPEncode for *;
 
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
@@ -55,10 +56,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   struct FinalityEvidence {
     uint256 numA;
     bytes32 headerA;
-    bytes   sigA;
+    bytes sigA;
     uint256 numB;
     bytes32 headerB;
-    bytes   sigB;
+    bytes sigB;
     address valAddr;
   }
 
@@ -74,9 +75,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     
     _;
   }
-  
 
-  function init() external onlyNotInit{
+  function init() external onlyNotInit {
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
     finalityDistance = FINALITY_DISTANCE;
@@ -85,7 +85,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns(bytes memory) {
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns (bytes memory) {
     require(false, "receive unexpected syn package");
   }
 
@@ -105,7 +105,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** External func ********************************/
-  function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
+  function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice {
     if (!IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator)) {
       return;
     }
@@ -131,49 +131,49 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
   // Clean is an effective implement to reorganize "validators" and "indicators".
-  function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
-    if(validators.length == 0){
+  function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit {
+    if (validators.length == 0) {
       return;
     }
     uint i = 0;
-    uint j = validators.length-1;
-    for (;i <= j;) {
+    uint j = validators.length - 1;
+    for (; i <= j;) {
       bool findLeft = false;
       bool findRight = false;
-      for(;i<j;i++){
+      for (; i < j; i++) {
         Indicator memory leftIndicator = indicators[validators[i]];
-        if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
-          leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
+        if (leftIndicator.count > felonyThreshold / DECREASE_RATE) {
+          leftIndicator.count = leftIndicator.count - felonyThreshold / DECREASE_RATE;
           indicators[validators[i]] = leftIndicator;
-        }else{
+        } else {
           findLeft = true;
           break;
         }
       }
-      for(;i<=j;j--){
+      for (; i <= j; j--) {
         Indicator memory rightIndicator = indicators[validators[j]];
-        if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
-          rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;
+        if (rightIndicator.count > felonyThreshold / DECREASE_RATE) {
+          rightIndicator.count = rightIndicator.count - felonyThreshold / DECREASE_RATE;
           indicators[validators[j]] = rightIndicator;
           findRight = true;
           break;
-        }else{
+        } else {
           delete indicators[validators[j]];
           validators.pop();
         }
         // avoid underflow
-        if(j==0){
+        if (j == 0) {
           break;
         }
       }
       // swap element in array
-      if (findLeft && findRight){
+      if (findLeft && findRight) {
         delete indicators[validators[i]];
         validators[i] = validators[j];
         validators.pop();
       }
       // avoid underflow
-      if(j==0){
+      if (j == 0) {
         break;
       }
       // move to next
@@ -203,13 +203,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     );
 
     require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(_evidence.valAddr), "not current validator");
-    
+
     // BLS verification
     bytes memory voteAddress;
     bytes memory input;
     bytes memory output;
 
-    address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
     for (uint i = 0; i < vals.length; i++) {
       if (vals[i] == _evidence.valAddr) {
         voteAddress = voteAddrs[i];
@@ -224,9 +224,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       bytes memory bytesHeaderA;
       bytes memory bytesHeaderB;
       TypesToBytes.uintToBytes(32, _evidence.numA, bytesNumA);
-      TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);   
+      TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);
       TypesToBytes.uintToBytes(32, _evidence.numB, bytesNumB);
-      TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB); 
+      TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB);
 
       input = BytesLib.concat(bytesNumA, bytesHeaderA);
       input = BytesLib.concat(input, _evidence.sigA);
@@ -238,11 +238,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     assembly {
       let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {  // precompiled contract address 0x64
+      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {// precompiled contract address 0x64
         revert(0, 0)
       }
     }
-    
+
     bytes32 _headerA = blockhash(_evidence.numA);
     bytes32 _headerB = blockhash(_evidence.numB);
 
@@ -264,13 +264,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Param update ********************************/
-  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
-    if (Memory.compareStrings(key,"misdemeanorThreshold")) {
+  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {
+    if (Memory.compareStrings(key, "misdemeanorThreshold")) {
       require(value.length == 32, "length of misdemeanorThreshold mismatch");
       uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newMisdemeanorThreshold >= 1 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
       misdemeanorThreshold = newMisdemeanorThreshold;
-    } else if (Memory.compareStrings(key,"felonyThreshold")) {
+    } else if (Memory.compareStrings(key, "felonyThreshold")) {
       require(value.length == 32, "length of felonyThreshold mismatch");
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
@@ -288,11 +288,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     } else {
       require(false, "unknown param");
     }
-    emit paramChange(key,value);
+    emit paramChange(key, value);
   }
 
   /*********************** query api ********************************/
-  function getSlashIndicator(address validator) external view returns (uint256,uint256) {
+  function getSlashIndicator(address validator) external view returns (uint256, uint256) {
     Indicator memory indicator = indicators[validator];
     return (indicator.height, indicator.count);
   }

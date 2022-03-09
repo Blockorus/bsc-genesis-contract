@@ -8,6 +8,7 @@ const RelayerHub = artifacts.require("RelayerHub");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 const SlashIndicator =  artifacts.require("SlashIndicator");
+const Migratorn = artifacts.require("Migrations");
 const RLP = require('rlp');
 const Web3 = require('web3');
 const GOV_CHANNEL_ID = 0x09;
@@ -32,7 +33,7 @@ contract('GovHub others', (accounts) => {
     it('Gov others failed', async () => {
         const govHubInstance = await GovHub.deployed();
         const bSCValidatorSetInstance =await BSCValidatorSet.deployed();
-        const systemRewardInstance = await SystemReward.deployed();
+        const migrationInstance = await Migratorn.deployed();
         const relayerAccount = accounts[8];
 
         // unknown  key
@@ -68,7 +69,7 @@ contract('GovHub others', (accounts) => {
         });
 
         // method do no exist
-        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x0000000000000000000000000000000000000000000000000000000000000000", systemRewardInstance.address),
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x0000000000000000000000000000000000000000000000000000000000000000", migrationInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithBytes",(ev) => {
             return ev.message === null;

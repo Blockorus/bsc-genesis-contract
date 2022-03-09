@@ -1,10 +1,11 @@
 pragma solidity 0.6.4;
+
 import "./System.sol";
 import "./lib/Memory.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ISystemReward.sol";
 
-contract SystemReward is System, IParamSubscriber, ISystemReward{
+contract SystemReward is System, IParamSubscriber, ISystemReward {
   uint256 public constant MAX_REWARDS = 1e18;
 
   uint public numOperator;
@@ -21,7 +22,6 @@ contract SystemReward is System, IParamSubscriber, ISystemReward{
     _;
   }
 
-  
   event rewardTo(address indexed to, uint256 amount);
   event rewardEmpty();
   event receiveDeposit(address indexed from, uint256 amount);
@@ -29,14 +29,13 @@ contract SystemReward is System, IParamSubscriber, ISystemReward{
   event paramChange(string key, bytes value);
 
 
-  receive() external payable{
-    if (msg.value>0) {
+  receive() external payable {
+    if (msg.value > 0) {
       emit receiveDeposit(msg.sender, msg.value);
     }
   }
 
-  
-  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit returns(uint256) {
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit returns (uint256) {
     if (!operators[msg.sender]) {
       return 0;
     }
@@ -45,7 +44,7 @@ contract SystemReward is System, IParamSubscriber, ISystemReward{
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
     }
-    if (actualAmount>0) {
+    if (actualAmount > 0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
     } else {
@@ -72,5 +71,5 @@ contract SystemReward is System, IParamSubscriber, ISystemReward{
       require(false, "unknown param");
     }
     emit paramChange(key, value);
-  }  
+  }
 }
