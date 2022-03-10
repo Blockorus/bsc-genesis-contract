@@ -210,8 +210,11 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(totalBalance.toString(), web3.utils.toBN(1e19).add(web3.utils.toBN(1e9)).toString(), "totalbalance is not correct");
 
     // do update
-    let packageBytes = validatorUpdateRlpEncode([newValidator.address],
-      [newValidator.address], [newValidator.address]);
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator.address],
+      [newValidator.address],
+      [newValidator.address]
+    );
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
@@ -252,13 +255,16 @@ contract('BSCValidatorSet', (accounts) => {
     for (let i = 0; i < 41; i++) {
       newValidators.push(web3.eth.accounts.create().address)
     }
-    let packageBytes = validatorUpdateRlpEncode(newValidators,
-      newValidators, newValidators);
+    let packageBytes = validatorUpdateRlpEncode(newValidators, newValidators, newValidators);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     // do deposit
+    let receipt;
     for (let i = 0; i < 41; i++) {
-      await validatorSetInstance.deposit(newValidators[i], {from: systemAccount, value: 1e18});
+      receipt = await validatorSetInstance.deposit(newValidators[i], {from: systemAccount, value: 1e18});
+      truffleAssert.eventEmitted(receipt, "validatorDeposit", (ev) => {
+        return ev.validator === newValidators[i];
+      });
     }
 
     // do update
@@ -266,8 +272,7 @@ contract('BSCValidatorSet', (accounts) => {
     for (let i = 0; i < 41; i++) {
       updateValidators.push(web3.eth.accounts.create().address)
     }
-    packageBytes = validatorUpdateRlpEncode(updateValidators,
-      updateValidators, updateValidators);
+    packageBytes = validatorUpdateRlpEncode(updateValidators, updateValidators, updateValidators);
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
     console.log("The total gasUsed is", tx.receipt.gasUsed)
   });
@@ -586,8 +591,11 @@ contract('BSCValidatorSet', (accounts) => {
     let relayerAccount = accounts[8];
 
     // do update
-    let packageBytes = validatorUpdateRlpEncode([newValidator1.address, newValidator2.address, newValidator3.address],
-      [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]);
+    let packageBytes = validatorUpdateRlpEncode(
+      [newValidator1.address, newValidator2.address, newValidator3.address],
+      [newValidator1.address, newValidator2.address, newValidator3.address],
+      [newValidator1.address, newValidator2.address, newValidator3.address]
+    );
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     let consensusAddres = await validatorSetInstance.getValidators.call();
@@ -643,8 +651,7 @@ contract('BSCValidatorSet', (accounts) => {
     for (let i = 0; i < 42; i++) {
       newValidators.push(web3.eth.accounts.create().address)
     }
-    let packageBytes = validatorUpdateRlpEncode(newValidators,
-      newValidators, newValidators);
+    let packageBytes = validatorUpdateRlpEncode(newValidators, newValidators, newValidators);
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     truffleAssert.eventEmitted(tx, "failReasonWithStr", (ev) => {
@@ -767,8 +774,7 @@ contract('BSCValidatorSet', (accounts) => {
     for (let i = 0; i < 41; i++) {
       newValidators.push(web3.eth.accounts.create().address)
     }
-    let packageBytes = validatorUpdateRlpEncode(newValidators,
-      newValidators, newValidators);
+    let packageBytes = validatorUpdateRlpEncode(newValidators, newValidators, newValidators);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     // set numOfCabinets to 21

@@ -60,10 +60,10 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
     if (Memory.compareStrings(key, "updateOperator")) {
       bytes memory valueLocal = value;
-      require(valueLocal.length == 32, "length of value for updateOperator should be 32");
+      require(valueLocal.length == 20, "length of value for updateOperator should be 20");
       address operatorAddr;
       assembly {
-        operatorAddr := mload(add(valueLocal, 32))
+        operatorAddr := mload(add(valueLocal, 20))
       }
       operators[operatorAddr] = true;
       emit updateOperator(operatorAddr);

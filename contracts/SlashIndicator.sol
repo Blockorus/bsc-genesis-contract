@@ -189,22 +189,19 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     }
 
     require(
-      (_evidence.numA < _evidence.numB && _evidence.numA + finalityDistance > _evidence.numB) ||
-      (_evidence.numB < _evidence.numA && _evidence.numB + finalityDistance > _evidence.numA),
+      (_evidence.numA < _evidence.numB && _evidence.numA + finalityDistance >= _evidence.numB) ||
+      (_evidence.numB < _evidence.numA && _evidence.numB + finalityDistance >= _evidence.numA),
       'too long distance between blocks'
     );
     require(
-      _evidence.numA < block.number && _evidence.numA + 256 >= block.number &&
-      _evidence.numB < block.number && _evidence.numB + 256 >= block.number,
+      _evidence.numA < block.number && _evidence.numA + 256 > block.number &&
+      _evidence.numB < block.number && _evidence.numB + 256 > block.number,
       'block number out of range'
     );
 
     // BLS verification
-    bytes memory voteAddress;
-    bytes memory input;
-    bytes memory output;
-
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    bytes memory voteAddress;
     bool exist;
     for (uint i = 0; i < vals.length; i++) {
       if (vals[i] == _evidence.valAddr) {
@@ -215,7 +212,10 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     }
     require(exist, "validator not exist");
 
-    // to avoid stack too deep
+    bytes memory input;
+    bytes memory output;
+
+    // to avoid too deep stack
     {
       bytes memory bytesNumA;
       bytes memory bytesNumB;
