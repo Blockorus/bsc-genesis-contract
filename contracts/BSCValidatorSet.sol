@@ -160,22 +160,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function init() external onlyNotInit {
     (IbcValidatorSetPackage memory validatorSetPkg, bool valid) = decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
-    ValidatorExtra memory _validatorExtra;
-    for (uint i = 0; i < validatorSetPkg.validatorSet.length; i++) {
-      _validatorExtra.voteAddress = validatorSetPkg.voteAddrs[i];
+    for (uint i = 0;i<validatorSetPkg.validatorSet.length;i++) {
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
-      validatorExtraSet.push(_validatorExtra);
       currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i + 1;
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
-    finalityRewardRatio = FINALITY_REWARD_RATIO;
     alreadyInit = true;
   }
 
   receive() external payable {}
 
   /*********************** Cross Chain App Implement **************************/
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns (bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract initValidatorExtraSet external override returns (bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
     if (!ok) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
@@ -406,7 +402,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function getLivingValidators() external view override returns (address[] memory, bytes[] memory) {
+  function getLivingValidators() external initValidatorExtraSet override returns (address[] memory, bytes[] memory) {
     uint n = currentValidatorSet.length;
     uint living = 0;
     for (uint i = 0; i < n; i++) {
@@ -436,7 +432,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (consensusAddrs, voteAddrs);
   }
 
-  function getMiningValidators() external view override returns (address[] memory, bytes[] memory) {
+  function getMiningValidators() external initValidatorExtraSet override returns (address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
     if (_numOfCabinets == 0) {

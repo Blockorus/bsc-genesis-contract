@@ -84,8 +84,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
   function init() external onlyNotInit {
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
-    finalityDistance = FINALITY_DISTANCE;
-    finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
     alreadyInit = true;
   }
 
