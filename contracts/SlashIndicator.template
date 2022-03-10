@@ -36,7 +36,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
   uint256 public finalityDistance;
   uint256 public finalitySlashRewardRatio;
-  bool private locked;
 
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();

@@ -77,7 +77,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public FINALITY_REWARD_RATIO = 10;
+  uint256 public constant FINALITY_REWARD_RATIO = 10;
 
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
@@ -654,7 +654,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (_numOfCabinets == 0) {
         _numOfCabinets = INIT_NUM_OF_CABINETS;
       }
-      require(newMaxNumOfMaintaining < _numOfCabinets, "the maxNumOfMaintaining must be less than numOfCaninates");
+      require(newMaxNumOfMaintaining < _numOfCabinets, "the maxNumOfMaintaining must be less than numOfCabinets");
       maxNumOfMaintaining = newMaxNumOfMaintaining;
     } else if (Memory.compareStrings(key, "maintainSlashScale")) {
       require(value.length == 32, "length of maintainSlashScale mismatch");
@@ -727,22 +727,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // make sure all new validators are cleared maintainInfo
     // should not happen, still protect
     numOfMaintaining = 0;
-  }
-
-  function isSameValidator(Validator memory v1, ValidatorExtra memory v1Extra, uint256 index) private view returns (bool) {
-    Validator memory v2 = currentValidatorSet[index];
-    ValidatorExtra memory v2Extra = validatorExtraSet[index];
-    if (v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress &&
-    v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower &&
-      v1Extra.voteAddress.length == v2Extra.voteAddress.length) {
-      for (uint i = 0; i < v1Extra.voteAddress.length; i++) {
-        if (v1Extra.voteAddress[i] != v2Extra.voteAddress[i]) {
-          return false;
-        }
-      }
-      return true;
-    }
-    return false;
   }
 
   function _misdemeanor(address validator) private returns (uint256) {
