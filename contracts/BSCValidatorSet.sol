@@ -402,7 +402,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function getLivingValidators() external initValidatorExtraSet override returns (address[] memory, bytes[] memory) {
+  function getLivingValidators() external view override returns (address[] memory, bytes[] memory) {
     uint n = currentValidatorSet.length;
     uint living = 0;
     for (uint i = 0; i < n; i++) {
@@ -413,7 +413,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address[] memory consensusAddrs = new address[](living);
     bytes[] memory voteAddrs = new bytes[](living);
     living = 0;
-    if (validatorExtraSet.length > 0) {
+    if (validatorExtraSet.length == n) {
       for (uint i = 0; i < n; i++) {
         if (!currentValidatorSet[i].jailed) {
           consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
@@ -432,7 +432,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (consensusAddrs, voteAddrs);
   }
 
-  function getMiningValidators() external initValidatorExtraSet override returns (address[] memory, bytes[] memory) {
+  function getMiningValidators() external view override returns (address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
     if (_numOfCabinets == 0) {
@@ -440,15 +440,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     address[] memory validators = getValidators();
-    bytes[] memory voteAddrs = new bytes[](validators.length);
-    uint n = currentValidatorSet.length;
-    uint index = 0;
-    for (uint i = 0; i < n; i++) {
-      if (isWorkingValidator(i)) {
-        voteAddrs[index] = validatorExtraSet[i].voteAddress;
-        index ++;
-      }
-    }
+    bytes[] memory voteAddrs = getVoteAddresses(validators.length);
+
     if (validators.length <= _numOfCabinets) {
       return (validators, voteAddrs);
     }
@@ -725,6 +718,22 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // make sure all new validators are cleared maintainInfo
     // should not happen, still protect
     numOfMaintaining = 0;
+  }
+
+  function getVoteAddresses(uint length) internal view returns (bytes[] memory) {
+    uint n = currentValidatorSet.length;
+    bytes[] memory voteAddrs = new bytes[](length);
+    if (validatorExtraSet.length != n) {
+      return voteAddrs;
+    }
+    uint index = 0;
+    for (uint i = 0; i < n; i++) {
+      if (isWorkingValidator(i)) {
+        voteAddrs[index] = validatorExtraSet[i].voteAddress;
+        index ++;
+      }
+    }
+    return voteAddrs;
   }
 
   function _misdemeanor(address validator) private returns (uint256) {

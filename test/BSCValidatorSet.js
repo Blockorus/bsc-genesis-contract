@@ -71,7 +71,6 @@ contract('BSCValidatorSet', (accounts) => {
     let balance_wei = await web3.eth.getBalance(validatorSetInstance.address);
     assert.equal(balance_wei, 2e8, "balance not equal");
   });
-
 });
 
 contract('BSCValidatorSet', (accounts) => {
@@ -237,7 +236,6 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(totalBalance, 0, "totalbalance is not correct");
 
   });
-
 });
 
 contract('BSCValidatorSet', (accounts) => {
@@ -276,7 +274,6 @@ contract('BSCValidatorSet', (accounts) => {
     let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
     console.log("The total gasUsed is", tx.receipt.gasUsed)
   });
-
 });
 
 contract('BSCValidatorSet', (accounts) => {
