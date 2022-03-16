@@ -33,7 +33,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
   uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f87680f873f871949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164b0a3c03b91d566e1a790a54393818230b35c01102456a3c4d59995d110a9ee3c2035c2c1594b198e2172d4130970706318";
 
   uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
   uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
@@ -160,8 +160,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function init() external onlyNotInit {
     (IbcValidatorSetPackage memory validatorSetPkg, bool valid) = decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
+    ValidatorExtra memory validatorExtra;
     for (uint i = 0;i<validatorSetPkg.validatorSet.length;i++) {
+      validatorExtra.voteAddress = validatorSetPkg.voteAddrs[i];
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
+      validatorExtraSet.push(validatorExtra);
       currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i + 1;
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
