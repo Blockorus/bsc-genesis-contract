@@ -516,41 +516,48 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
-    uint256 totalValue;
     if (finalityRewardRatio == 0) {
       finalityRewardRatio = FINALITY_REWARD_RATIO;
     }
+
+    uint256 totalValue;
     totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
     totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
+    if (totalValue == 0) {
+      return;
+    }
 
     uint256 totalWeight;
     for (uint256 i = 0; i < weights.length; i++) {
       totalWeight += weights[i];
     }
-    if (totalValue > 0 && totalWeight > 0) {
-      uint256 value;
-      address valAddr;
-      uint256 index;
+    if (totalWeight == 0) {
+      return;
+    }
 
-      for (uint256 i = 0; i < valAddrs.length; i++) {
-        value = (totalValue * weights[i]) / totalWeight;
-        valAddr = valAddrs[i];
-        index = currentValidatorSetMap[valAddr];
-        if (index > 0) {
-          Validator storage validator = currentValidatorSet[index - 1];
-          if (validator.jailed) {
-            emit deprecatedDeposit(valAddr, value);
-          } else {
-            totalInComing = totalInComing.add(value);
-            validator.incoming = validator.incoming.add(value);
-            emit validatorDeposit(valAddr, value);
-          }
-        } else {
-          // get incoming from deprecated validator;
+    uint256 value;
+    address valAddr;
+    uint256 index;
+
+    for (uint256 i = 0; i < valAddrs.length; i++) {
+      value = (totalValue * weights[i]) / totalWeight;
+      valAddr = valAddrs[i];
+      index = currentValidatorSetMap[valAddr];
+      if (index > 0) {
+        Validator storage validator = currentValidatorSet[index - 1];
+        if (validator.jailed) {
           emit deprecatedDeposit(valAddr, value);
+        } else {
+          totalInComing = totalInComing.add(value);
+          validator.incoming = validator.incoming.add(value);
+          emit validatorDeposit(valAddr, value);
         }
+      } else {
+        // get incoming from deprecated validator;
+        emit deprecatedDeposit(valAddr, value);
       }
     }
+
   }
 
   /*********************** For slash **************************/
