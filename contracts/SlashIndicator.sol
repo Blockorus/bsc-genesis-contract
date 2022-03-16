@@ -70,7 +70,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
   modifier onlyZeroGasPrice() {
     
-    require(tx.gasprice == 0 , "gasprice is not zero");
+    require(tx.gasprice == 0, "gasprice is not zero");
     
     _;
   }
@@ -189,12 +189,12 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     require(
       (_evidence.numA < _evidence.numB && _evidence.numA + finalityDistance >= _evidence.numB) ||
       (_evidence.numB < _evidence.numA && _evidence.numB + finalityDistance >= _evidence.numA),
-      'too long distance between blocks'
+      "too long distance between blocks"
     );
     require(
       _evidence.numA < block.number && _evidence.numA + 256 > block.number &&
       _evidence.numB < block.number && _evidence.numB + 256 > block.number,
-      'block number out of range'
+      "block number out of range"
     );
 
     // BLS verification
@@ -232,9 +232,11 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
       input = BytesLib.concat(input, voteAddress);
     }
 
+    // call the precompiled contract to verify the BLS signature
+    // the precompiled contract's address is 0x64
     assembly {
       let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {// precompiled contract address 0x64
+      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
         revert(0, 0)
       }
     }
@@ -302,7 +304,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     return elements.encodeList();
   }
 
-  function getSlashThresholds() override(ISlashIndicator) external view returns (uint256, uint256) {
+  function getSlashThresholds() external view override(ISlashIndicator) returns (uint256, uint256) {
     return (misdemeanorThreshold, felonyThreshold);
   }
 }

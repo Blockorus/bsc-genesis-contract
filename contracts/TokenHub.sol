@@ -96,8 +96,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
-    bep20ContractDecimals[address(0x0)] = 18;
-    // BNB decimals is 18
+    bep20ContractDecimals[address(0x0)] = 18; // BNB decimals is 18
     alreadyInit = true;
   }
 
@@ -392,8 +391,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(msg.value >= amount.add(relayFee), "received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee");
       require(amount % TEN_DECIMALS == 0, "invalid transfer amount: precision loss in amount conversion");
       rewardForRelayer = msg.value.sub(amount);
-      convertedAmount = amount.div(TEN_DECIMALS);
-      // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+      convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol = BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
@@ -402,8 +400,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       rewardForRelayer = msg.value;
       uint256 bep20TokenDecimals = bep20ContractDecimals[contractAddr];
       require(bep20TokenDecimals <= BEP2_TOKEN_DECIMALS || (bep20TokenDecimals > BEP2_TOKEN_DECIMALS && amount.mod(10 ** (bep20TokenDecimals - BEP2_TOKEN_DECIMALS)) == 0), "invalid transfer amount: precision loss in amount conversion");
-      convertedAmount = convertToBep2Amount(amount, bep20TokenDecimals);
-      // convert to bep2 amount
+      convertedAmount = convertToBep2Amount(amount, bep20TokenDecimals); // convert to bep2 amount
       if (isMiniBEP2Token(bep2TokenSymbol)) {
         require(convertedAmount >= 1e8, "For miniToken, the transfer amount must not be less than 1");
       }
