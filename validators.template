@@ -27,7 +27,7 @@ function generateExtradata(validators, bLSPublicKeys) {
 function extraDataSerialize(validators, bLSPublicKeys) {
   let n = validators.length;
   let arr = [];
-  arr.push(Buffer.from(web3.utils.hexToBytes(n.toString(16))));
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x" + n.toString(16))));
   for (let i = 0; i < n; i++) {
     let validator = validators[i];
     let BLSPublicKey = bLSPublicKeys[i];
