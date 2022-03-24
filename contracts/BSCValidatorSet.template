@@ -526,7 +526,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 totalValue;
     totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
     totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
-    emit deprecatedDeposit(address(this), totalValue);
     if (totalValue == 0) {
       return;
     }
