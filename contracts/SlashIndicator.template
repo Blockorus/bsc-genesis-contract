@@ -186,7 +186,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     emit indicatorCleaned();
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
+  function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit {
     if (finalityDistance == 0 || finalitySlashRewardRatio == 0) {
       finalityDistance = FINALITY_DISTANCE;
       finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
