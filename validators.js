@@ -29,9 +29,6 @@ const bLSPublicKeys = [
    "0x8addebd6ef7609df215e006987040d0a643858f3a4d791beaa77177d67529160e645fac54f0d8acdcd5a088393cb6681",
    "0x89abcc45efe76bec679ca35c27adbd66fb9712a278e3c8530ab25cfaf997765aee574f5c5745dbb873dbf7e961684347",
 ];
-const bLSPublicKeys = [
-  "0xa3c03b91d566e1a790a54393818230b35c01102456a3c4d59995d110a9ee3c2035c2c1594b198e2172d4130970706318",
-];
 
 // ===============  Do not edit below ====
 function generateExtradata(validators, bLSPublicKeys) {
