@@ -19,7 +19,7 @@
     "bonehBlock": 0,
     "parlia": {
       "period": 3,
-      "epoch": 200
+      "epoch": 50
     }
   },
   "nonce": "0x0",
