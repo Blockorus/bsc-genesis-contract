@@ -33,7 +33,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
   uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f9016980f90165f8759414de643980726167f9772623ce337940bc2b0aa09414de643980726167f9772623ce337940bc2b0aa09414de643980726167f9772623ce337940bc2b0aa08410000000b085e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588f875943c2a0a9690a247c4ddc6f68ee5a41522996923db943c2a0a9690a247c4ddc6f68ee5a41522996923db943c2a0a9690a247c4ddc6f68ee5a41522996923db8410000000b08addebd6ef7609df215e006987040d0a643858f3a4d791beaa77177d67529160e645fac54f0d8acdcd5a088393cb6681f875942b7c653375f4346336760a8066a6c871aee70951942b7c653375f4346336760a8066a6c871aee70951942b7c653375f4346336760a8066a6c871aee709518410000000b089abcc45efe76bec679ca35c27adbd66fb9712a278e3c8530ab25cfaf997765aee574f5c5745dbb873dbf7e961684347";
 
   uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
   uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
@@ -160,8 +160,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function init() external onlyNotInit {
     (IbcValidatorSetPackage memory validatorSetPkg, bool valid) = decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
+    ValidatorExtra memory validatorExtra;
     for (uint i = 0;i<validatorSetPkg.validatorSet.length;i++) {
+      validatorExtra.voteAddress = validatorSetPkg.voteAddrs[i];
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
+      validatorExtraSet.push(validatorExtra);
       currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i + 1;
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
