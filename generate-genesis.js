@@ -84,7 +84,6 @@ function compileContract(key, contractFile, contractName) {
     )
 
     const matched = compiledData.match(/@@@@\n([a-f0-9]+)/)
-    console.log(matched)
     return { key, compiledData: matched[1], contractName, contractFile }
   })
 }

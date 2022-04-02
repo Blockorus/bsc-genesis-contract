@@ -182,86 +182,86 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     emit indicatorCleaned();
   }
 
-    function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
-      if (finalitySlashRewardRatio == 0) {
-        finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
-      }
-      uint256 srcNumA = _evidence.voteA.srcNum;
-      uint256 tarNumA = _evidence.voteA.tarNum;
-      uint256 srcNumB = _evidence.voteB.srcNum;
-      uint256 tarNumB = _evidence.voteB.tarNum;
-
-      require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
-
-      // Vote rules check
-      if (!((srcNumA < srcNumB && srcNumB < tarNumB && tarNumB < tarNumA) ||
-      (srcNumB < srcNumA && srcNumA < tarNumA && tarNumA < tarNumB)) &&
-      !(tarNumA == tarNumB)) {
-        revert(string(abi.encodePacked("no violation of vote rules")));
-      }
-
-      // BLS verification
-      (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
-      bytes memory voteAddress;
-      bool exist;
-      for (uint i = 0; i < vals.length; i++) {
-        if (vals[i] == _evidence.valAddr) {
-          exist = true;
-          voteAddress = voteAddrs[i];
-          break;
-        }
-      }
-      require(exist, "validator not exist");
-
-      bytes memory input;
-      bytes memory output;
-
-      // to avoid too deep stack
-      {
-        bytes memory bytesSrcNumA;
-        bytes memory bytesTarNumA;
-        bytes memory bytesSrcHashA;
-        bytes memory bytesTarHashA;
-        bytes memory bytesSrcNumB;
-        bytes memory bytesTarNumB;
-        bytes memory bytesSrcHashB;
-        bytes memory bytesTarHashB;
-        TypesToBytes.uintToBytes(32, srcNumA, bytesSrcNumA);
-        TypesToBytes.uintToBytes(32, tarNumA, bytesTarNumA);
-        TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, bytesSrcHashA);
-        TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, bytesTarHashA);
-        TypesToBytes.uintToBytes(32, srcNumB, bytesSrcNumB);
-        TypesToBytes.uintToBytes(32, tarNumB, bytesTarNumB);
-        TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, bytesSrcHashB);
-        TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, bytesTarHashB);
-
-        input = BytesLib.concat(bytesSrcNumA, bytesTarNumA);
-        input = BytesLib.concat(input, bytesSrcHashA);
-        input = BytesLib.concat(input, bytesTarHashA);
-        input = BytesLib.concat(input, _evidence.voteA.sig);
-        input = BytesLib.concat(input, bytesSrcNumB);
-        input = BytesLib.concat(input, bytesTarNumB);
-        input = BytesLib.concat(input, bytesSrcHashB);
-        input = BytesLib.concat(input, bytesTarHashB);
-        input = BytesLib.concat(input, _evidence.voteB.sig);
-        input = BytesLib.concat(input, voteAddress);
-      }
-
-      // call the precompiled contract to verify the BLS signature
-      // the precompiled contract's address is 0x64
-      assembly {
-        let len := mload(input)
-        if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
-          revert(0, 0)
-        }
-      }
-
-      uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
-      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-      IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
-      emit validatorSlashed(_evidence.valAddr);
+  function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
+    if (finalitySlashRewardRatio == 0) {
+      finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
     }
+    uint256 srcNumA = _evidence.voteA.srcNum;
+    uint256 tarNumA = _evidence.voteA.tarNum;
+    uint256 srcNumB = _evidence.voteB.srcNum;
+    uint256 tarNumB = _evidence.voteB.tarNum;
+
+    require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
+
+    // Vote rules check
+    if (!((srcNumA < srcNumB && srcNumB < tarNumB && tarNumB < tarNumA) ||
+    (srcNumB < srcNumA && srcNumA < tarNumA && tarNumA < tarNumB)) &&
+    !(tarNumA == tarNumB)) {
+      revert(string(abi.encodePacked("no violation of vote rules")));
+    }
+
+    // BLS verification
+    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    bytes memory voteAddress;
+    bool exist;
+    for (uint i = 0; i < vals.length; i++) {
+      if (vals[i] == _evidence.valAddr) {
+        exist = true;
+        voteAddress = voteAddrs[i];
+        break;
+      }
+    }
+    require(exist, "validator not exist");
+
+    bytes memory input;
+    bytes memory output;
+
+    // to avoid too deep stack
+    {
+      bytes memory bytesSrcNumA;
+      bytes memory bytesTarNumA;
+      bytes memory bytesSrcHashA;
+      bytes memory bytesTarHashA;
+      bytes memory bytesSrcNumB;
+      bytes memory bytesTarNumB;
+      bytes memory bytesSrcHashB;
+      bytes memory bytesTarHashB;
+      TypesToBytes.uintToBytes(32, srcNumA, bytesSrcNumA);
+      TypesToBytes.uintToBytes(32, tarNumA, bytesTarNumA);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, bytesSrcHashA);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, bytesTarHashA);
+      TypesToBytes.uintToBytes(32, srcNumB, bytesSrcNumB);
+      TypesToBytes.uintToBytes(32, tarNumB, bytesTarNumB);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, bytesSrcHashB);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, bytesTarHashB);
+
+      input = BytesLib.concat(bytesSrcNumA, bytesTarNumA);
+      input = BytesLib.concat(input, bytesSrcHashA);
+      input = BytesLib.concat(input, bytesTarHashA);
+      input = BytesLib.concat(input, _evidence.voteA.sig);
+      input = BytesLib.concat(input, bytesSrcNumB);
+      input = BytesLib.concat(input, bytesTarNumB);
+      input = BytesLib.concat(input, bytesSrcHashB);
+      input = BytesLib.concat(input, bytesTarHashB);
+      input = BytesLib.concat(input, _evidence.voteB.sig);
+      input = BytesLib.concat(input, voteAddress);
+    }
+
+    // call the precompiled contract to verify the BLS signature
+    // the precompiled contract's address is 0x64
+    assembly {
+      let len := mload(input)
+      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
+        revert(0, 0)
+      }
+    }
+
+    uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
+    emit validatorSlashed(_evidence.valAddr);
+  }
 
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
