@@ -218,31 +218,24 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
     // to avoid too deep stack
     {
-      bytes memory bytesSrcNumA;
-      bytes memory bytesTarNumA;
-      bytes memory bytesSrcHashA;
-      bytes memory bytesTarHashA;
-      bytes memory bytesSrcNumB;
-      bytes memory bytesTarNumB;
-      bytes memory bytesSrcHashB;
-      bytes memory bytesTarHashB;
-      TypesToBytes.uintToBytes(32, srcNumA, bytesSrcNumA);
-      TypesToBytes.uintToBytes(32, tarNumA, bytesTarNumA);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, bytesSrcHashA);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, bytesTarHashA);
-      TypesToBytes.uintToBytes(32, srcNumB, bytesSrcNumB);
-      TypesToBytes.uintToBytes(32, tarNumB, bytesTarNumB);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, bytesSrcHashB);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, bytesTarHashB);
-
-      input = BytesLib.concat(bytesSrcNumA, bytesTarNumA);
-      input = BytesLib.concat(input, bytesSrcHashA);
-      input = BytesLib.concat(input, bytesTarHashA);
+      bytes memory pre;
+      bytes memory cur;
+      TypesToBytes.uintToBytes(32, srcNumA, pre);
+      TypesToBytes.uintToBytes(32, tarNumA, cur);
+      input = BytesLib.concat(pre, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, cur);
+      input = BytesLib.concat(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
+      input = BytesLib.concat(input, cur);
       input = BytesLib.concat(input, _evidence.voteA.sig);
-      input = BytesLib.concat(input, bytesSrcNumB);
-      input = BytesLib.concat(input, bytesTarNumB);
-      input = BytesLib.concat(input, bytesSrcHashB);
-      input = BytesLib.concat(input, bytesTarHashB);
+      TypesToBytes.uintToBytes(32, srcNumB, cur);
+      input = BytesLib.concat(input, cur);
+      TypesToBytes.uintToBytes(32, tarNumB, cur);
+      input = BytesLib.concat(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, cur);
+      input = BytesLib.concat(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
+      input = BytesLib.concat(input, cur);
       input = BytesLib.concat(input, _evidence.voteB.sig);
       input = BytesLib.concat(input, voteAddress);
     }
