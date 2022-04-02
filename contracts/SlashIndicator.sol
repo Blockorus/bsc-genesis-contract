@@ -3,7 +3,6 @@ pragma experimental ABIEncoderV2;
 
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
-import "./lib/BytesLib.sol";
 import "./lib/TypesToBytes.sol";
 import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
@@ -218,26 +217,26 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
     // to avoid too deep stack
     {
-      bytes memory pre;
-      bytes memory cur;
+      bytes memory pre = new bytes(32);
+      bytes memory cur = new bytes(32);
       TypesToBytes.uintToBytes(32, srcNumA, pre);
       TypesToBytes.uintToBytes(32, tarNumA, cur);
-      input = BytesLib.concat(pre, cur);
+      input = abi.encodePacked(pre, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, cur);
-      input = BytesLib.concat(input, cur);
+      input = abi.encodePacked(input, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
-      input = BytesLib.concat(input, cur);
-      input = BytesLib.concat(input, _evidence.voteA.sig);
+      input = abi.encodePacked(input, cur);
+      input = abi.encodePacked(input, _evidence.voteA.sig);
       TypesToBytes.uintToBytes(32, srcNumB, cur);
-      input = BytesLib.concat(input, cur);
+      input = abi.encodePacked(input, cur);
       TypesToBytes.uintToBytes(32, tarNumB, cur);
-      input = BytesLib.concat(input, cur);
+      input = abi.encodePacked(input, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, cur);
-      input = BytesLib.concat(input, cur);
+      input = abi.encodePacked(input, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
-      input = BytesLib.concat(input, cur);
-      input = BytesLib.concat(input, _evidence.voteB.sig);
-      input = BytesLib.concat(input, voteAddress);
+      input = abi.encodePacked(input, cur);
+      input = abi.encodePacked(input, _evidence.voteB.sig);
+      input = abi.encodePacked(input, voteAddress);
     }
 
     // call the precompiled contract to verify the BLS signature
