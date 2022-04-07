@@ -190,7 +190,8 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     uint256 srcNumB = _evidence.voteB.srcNum;
     uint256 tarNumB = _evidence.voteB.tarNum;
 
-    require(!(srcNumA == srcNumB && tarNumA == tarNumB), "two identical votes");
+    require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
+    _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
 
     // Vote rules check
